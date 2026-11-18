@@ -1,0 +1,4405 @@
+{
+  "year": 2026,
+  "version": "2026-11-01",
+  "license": "CC-BY-4.0",
+  "attribution": "IndiaDigital (indiadigital.org), CC BY 4.0. Source: Reserve Bank of India holiday matrix.",
+  "source": {
+    "name": "RBI: Holidays (regional office matrix)",
+    "url": "https://www.rbi.org.in/Scripts/HolidayMatrixDisplay.aspx"
+  },
+  "caveats": [
+    "Moon-based observances can be revised by the issuing state or union territory administration.",
+    "Rows marked approximate in the source dataset are not used; those calendars use their own government notices instead."
+  ],
+  "rows": [
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-01-15",
+      "name": "Makar Sankranti"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-01-16",
+      "name": "Kanuma"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-03-19",
+      "name": "Ugadi"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-03-27",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-09-14",
+      "name": "Ganesh Chaturthi"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "AP",
+      "states": "AP",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-01-01",
+      "name": "New Year's Day"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-01-14",
+      "name": "Makar Sankranti"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-02-20",
+      "name": "State Day"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Bohag Bihu / Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-04-15",
+      "name": "Bohag Bihu"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-12-01",
+      "name": "Indigenous Faith Day"
+    },
+    {
+      "rbiList": "AR",
+      "states": "AR",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-01-14",
+      "name": "Magh Bihu"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Bohag Bihu / Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-04-15",
+      "name": "Bohag Bihu"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-04-16",
+      "name": "Bohag Bihu"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-05-27",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-09-12",
+      "name": "Tirubhav Tithi of Srimanta Sankardeva"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-09-21",
+      "name": "Janmotsav of Srimanta Sankardeva"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-10-21",
+      "name": "Vijaya Dashami / Durga Puja"
+    },
+    {
+      "rbiList": "AS",
+      "states": "AS",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-03-27",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-11-16",
+      "name": "Chhath Puja"
+    },
+    {
+      "rbiList": "BR",
+      "states": "BR",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Raksha Bandhan"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-11-09",
+      "name": "Diwali (Lakshmi Puja)"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "CG",
+      "states": "CG",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-04-14",
+      "name": "Baisakhi / Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-10-26",
+      "name": "Maharishi Valmiki Jayanti"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-11-09",
+      "name": "Diwali (Lakshmi Puja)"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "CH",
+      "states": "HR PB CH",
+      "statesApprox": "HR PB",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "DL",
+      "states": "DL",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-03-19",
+      "name": "Gudi Padwa"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-09-14",
+      "name": "Ganesh Chaturthi"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-09-15",
+      "name": "Ganesh Chaturthi (second day)"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-12-03",
+      "name": "Feast of St. Francis Xavier"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-12-19",
+      "name": "Goa Liberation Day"
+    },
+    {
+      "rbiList": "GA",
+      "states": "GA",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-01-14",
+      "name": "Makar Sankranti"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Dhuleti (Holi second day)"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Raksha Bandhan"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-09-15",
+      "name": "Samvatsari"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-10-31",
+      "name": "Sardar Vallabhbhai Patel's birthday"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-11-10",
+      "name": "Vikram Samvat New Year"
+    },
+    {
+      "rbiList": "GJ",
+      "states": "GJ",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-04-15",
+      "name": "Himachal Day"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-06-29",
+      "name": "Sant Kabir Jayanti"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Raksha Bandhan"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-10-26",
+      "name": "Maharishi Valmiki Jayanti"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-10-29",
+      "name": "Karva Chauth"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-11-11",
+      "name": "Bhai Dooj"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "HP",
+      "states": "HP",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-02-23",
+      "name": "Municipal elections"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr / Sarhul"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-03-27",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-09-22",
+      "name": "Karma Puja"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-11-16",
+      "name": "Chhath Puja"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "JH",
+      "states": "JH",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-03-13",
+      "name": "Jumat-ul-Vida"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-03-17",
+      "name": "Shab-e-Qadr"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-03-19",
+      "name": "First Navratra"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Baisakhi / Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-05-27",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Friday after Id-e-Milad"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-09-23",
+      "name": "Maharaja Hari Singh's birthday"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-10-26",
+      "name": "Accession Day"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "JK",
+      "states": "JK",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-03-13",
+      "name": "Jumat-ul-Vida"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-03-17",
+      "name": "Shab-e-Qadr"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-03-19",
+      "name": "First Navratra"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-04-14",
+      "name": "Baisakhi / Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-05-27",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-08-28",
+      "name": "Friday after Id-e-Milad"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-09-23",
+      "name": "Maharaja Hari Singh's birthday"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-10-26",
+      "name": "Accession Day"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "JK-KASHMIR",
+      "states": "JK-KASHMIR LA",
+      "statesApprox": "LA",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-01-15",
+      "name": "Makar Sankranti"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-03-19",
+      "name": "Ugadi"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-03-30",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-04-20",
+      "name": "Basava Jayanti / Akshaya Tritiya"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-09-14",
+      "name": "Ganesh Chaturthi"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-10-10",
+      "name": "Mahalaya Amavasya"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-10-21",
+      "name": "Vijaya Dashami / Durga Puja"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-10-26",
+      "name": "Maharishi Valmiki Jayanti"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-11-10",
+      "name": "Diwali (Bali Pratipada)"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-11-27",
+      "name": "Kanakadasa Jayanthi"
+    },
+    {
+      "rbiList": "KA",
+      "states": "KA",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-01-02",
+      "name": "Mannam Jayanthi"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-03-20",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-04-02",
+      "name": "Maundy Thursday"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-04-09",
+      "name": "Kerala Assembly election"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-04-15",
+      "name": "Vishu"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-05-27",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-08-25",
+      "name": "First Onam"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Thiruvonam / Milad-un-Nabi"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Sree Narayana Guru Jayanthi"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-09-21",
+      "name": "Sree Narayana Guru Samadhi"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Ayudha Pooja (Maha Navami)"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-10-21",
+      "name": "Vijaya Dashami / Durga Puja"
+    },
+    {
+      "rbiList": "KL",
+      "states": "KL",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-01-02",
+      "name": "Mannam Jayanthi"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Attukal Pongala"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-03-20",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-04-02",
+      "name": "Maundy Thursday"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-04-09",
+      "name": "Kerala Assembly election"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-04-15",
+      "name": "Vishu"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-05-27",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-08-25",
+      "name": "First Onam"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Thiruvonam / Milad-un-Nabi"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Sree Narayana Guru Jayanthi"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-09-21",
+      "name": "Sree Narayana Guru Samadhi"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Ayudha Pooja (Maha Navami)"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-10-21",
+      "name": "Vijaya Dashami / Durga Puja"
+    },
+    {
+      "rbiList": "KL-TVM",
+      "states": "KL-TVM",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-01-15",
+      "name": "Municipal corporation elections"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-02-19",
+      "name": "Chhatrapati Shivaji Maharaj Jayanti"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-03-19",
+      "name": "Gudi Padwa"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Maharashtra Day / Buddha Purnima"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day / Parsi New Year"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-09-14",
+      "name": "Ganesh Chaturthi"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-11-10",
+      "name": "Diwali (Bali Pratipada)"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "MH",
+      "states": "MH",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-01-01",
+      "name": "New Year's Day"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-04-13",
+      "name": "Shad Suk Mynsiem"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-06-22",
+      "name": "Rev. Thomas Jones Day"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-07-09",
+      "name": "Beh Deinkhlam"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-07-17",
+      "name": "U Tirot Singh death anniversary"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-09-18",
+      "name": "Unitarian Anniversary Day"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-10-21",
+      "name": "Vijaya Dashami / Durga Puja"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-11-02",
+      "name": "Nongkrem Dance"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-11-13",
+      "name": "Wangala Festival"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-11-23",
+      "name": "Seng Kut Snem"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-12-12",
+      "name": "Pa Togan Nengminja Sangma death anniversary"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-12-18",
+      "name": "U SoSo Tham death anniversary"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-12-24",
+      "name": "Christmas Eve"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-12-26",
+      "name": "Christmas celebration"
+    },
+    {
+      "rbiList": "ML",
+      "states": "ML",
+      "statesApprox": "",
+      "date": "2026-12-30",
+      "name": "U Kiang Nangbah death anniversary"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-01-01",
+      "name": "Gaan-Ngai"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Yaosang (second day)"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-03-19",
+      "name": "Sajibu Nongmapanba (Cheiraoba)"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-07-16",
+      "name": "Kang (Rath Yatra)"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-08-13",
+      "name": "Patriots' Day"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-11-09",
+      "name": "Diwali (Lakshmi Puja)"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-11-11",
+      "name": "Ningol Chakkouba"
+    },
+    {
+      "rbiList": "MN",
+      "states": "MN",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-03-27",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-03-30",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Raksha Bandhan"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-11-09",
+      "name": "Diwali (Lakshmi Puja)"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "MP",
+      "states": "MP",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-01-01",
+      "name": "New Year's Day"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-01-02",
+      "name": "New Year celebration"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-02-20",
+      "name": "State Day"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-03-13",
+      "name": "Chapchar Kut"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-04-21",
+      "name": "Aizawl Municipal Corporation election"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-06-15",
+      "name": "YMA Day"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-06-30",
+      "name": "Remna Ni"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-07-06",
+      "name": "MHIP Day"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-12-24",
+      "name": "Christmas Eve"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "MZ",
+      "states": "MZ",
+      "statesApprox": "",
+      "date": "2026-12-31",
+      "name": "New Year's Eve"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-01-01",
+      "name": "New Year's Day"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-12-01",
+      "name": "State Inauguration Day"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-12-24",
+      "name": "Christmas Eve"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "NL",
+      "states": "NL",
+      "statesApprox": "",
+      "date": "2026-12-26",
+      "name": "Christmas celebration"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-01-14",
+      "name": "Makar Sankranti"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-01-23",
+      "name": "Saraswati Puja (Basant Panchami)"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-03-27",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Maha Vishuva Sankranti / Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-06-15",
+      "name": "Raja Sankranti"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-07-16",
+      "name": "Rath Yatra"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-09-14",
+      "name": "Ganesh Chaturthi"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-09-15",
+      "name": "Nuakhai"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "OD",
+      "states": "OD",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Raksha Bandhan"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-09-11",
+      "name": "Jaipur municipal elections"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-11-09",
+      "name": "Diwali (Lakshmi Puja)"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "RJ",
+      "states": "RJ",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-01-01",
+      "name": "New Year's Day"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-01-15",
+      "name": "Maghe Sankranti"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-02-18",
+      "name": "Losar"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-03-27",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-05-16",
+      "name": "Sikkim State Day"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-07-18",
+      "name": "Drukpa Tshe-zi"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-08-08",
+      "name": "Tendong Lho Rum Faat"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Pang Lhabsol"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-09-25",
+      "name": "Indrajatra"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-10-21",
+      "name": "Vijaya Dashami / Durga Puja"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-10-22",
+      "name": "Durga Puja (Dasain)"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-10-23",
+      "name": "Durga Puja (Dasain)"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-11-09",
+      "name": "Diwali (Lakshmi Puja)"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-11-10",
+      "name": "Diwali (Govardhan Puja)"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-11-11",
+      "name": "Bhai Dooj"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-12-09",
+      "name": "Losoong / Namsoong"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-12-10",
+      "name": "Losoong / Namsoong"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-12-11",
+      "name": "Losoong / Namsoong"
+    },
+    {
+      "rbiList": "SK",
+      "states": "SK",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-01-01",
+      "name": "New Year's Day"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-01-15",
+      "name": "Pongal"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-01-16",
+      "name": "Thiruvalluvar Day"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-01-17",
+      "name": "Uzhavar Thirunal"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-03-19",
+      "name": "Telugu New Year's Day"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-04-14",
+      "name": "Tamil New Year / Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-04-23",
+      "name": "Tamil Nadu Assembly election"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-09-14",
+      "name": "Ganesh Chaturthi"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-10-19",
+      "name": "Ayudha Pooja (Maha Navami)"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "TN",
+      "states": "TN PY",
+      "statesApprox": "PY",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-01-23",
+      "name": "Saraswati Puja (Basant Panchami)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-04-15",
+      "name": "Bengali New Year (Poila Baisakh)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-04-21",
+      "name": "Garia Puja"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-05-26",
+      "name": "Kazi Nazrul Islam's birthday"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-07-22",
+      "name": "Kharchi Puja"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-08-04",
+      "name": "Ker Puja"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-08-19",
+      "name": "Maharaja Bir Bikram Kishore Manikya's birthday"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-10-17",
+      "name": "Durga Puja (Maha Saptami)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-10-21",
+      "name": "Vijaya Dashami / Durga Puja"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-10-26",
+      "name": "Lakshmi Puja"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-11-09",
+      "name": "Diwali (Lakshmi Puja)"
+    },
+    {
+      "rbiList": "TR",
+      "states": "TR",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-01-15",
+      "name": "Makar Sankranti"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-03-19",
+      "name": "Ugadi"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-03-27",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-09-14",
+      "name": "Ganesh Chaturthi"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "TS",
+      "states": "TS",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-07-16",
+      "name": "Harela"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Raksha Bandhan"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-11-10",
+      "name": "Diwali (Govardhan Puja)"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-11-20",
+      "name": "Igas-Bagwal"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "UK",
+      "states": "UK",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-01-03",
+      "name": "Birthday of Hazrat Ali"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-01-15",
+      "name": "Makar Sankranti"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-03-02",
+      "name": "Holika Dahan"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-03-04",
+      "name": "Holi"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-08-26",
+      "name": "Milad-un-Nabi (Id-e-Milad)"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-08-28",
+      "name": "Raksha Bandhan"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-11-09",
+      "name": "Diwali (Lakshmi Puja)"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-11-11",
+      "name": "Bhai Dooj"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "UP",
+      "states": "UP",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-01-01",
+      "name": "New Year's Day"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-01-12",
+      "name": "Swami Vivekananda's birthday"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-01-23",
+      "name": "Netaji Subhas Chandra Bose's birthday"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-01-26",
+      "name": "Republic Day"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-03-03",
+      "name": "Dol Jatra (Holi)"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-03-21",
+      "name": "Eid-ul-Fitr (Ramzan Id)"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-03-26",
+      "name": "Ram Navami"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-03-31",
+      "name": "Mahavir Jayanti"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-04-03",
+      "name": "Good Friday"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-04-14",
+      "name": "Dr. Ambedkar Jayanti"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-04-15",
+      "name": "Bengali New Year (Poila Baisakh)"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-04-29",
+      "name": "West Bengal Assembly election"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-05-01",
+      "name": "Buddha Purnima / May Day"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-05-09",
+      "name": "Rabindranath Tagore's birthday"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-05-28",
+      "name": "Bakri Id (Eid-ul-Adha)"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-06-26",
+      "name": "Muharram (Ashura)"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-07-06",
+      "name": "Dr. Syama Prasad Mookerjee's birth anniversary"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-08-15",
+      "name": "Independence Day"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-09-04",
+      "name": "Janmashtami"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-10-02",
+      "name": "Gandhi Jayanti"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-10-10",
+      "name": "Mahalaya Amavasya"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-10-19",
+      "name": "Durga Puja (Maha Ashtami / Navami)"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-10-20",
+      "name": "Dussehra (Vijaya Dashami)"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-10-21",
+      "name": "Vijaya Dashami / Durga Puja"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-11-11",
+      "name": "Deepawali"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-11-24",
+      "name": "Guru Nanak Jayanti / Kartik Purnima"
+    },
+    {
+      "rbiList": "WB",
+      "states": "WB",
+      "statesApprox": "",
+      "date": "2026-12-25",
+      "name": "Christmas"
+    }
+  ]
+}
