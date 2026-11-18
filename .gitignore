@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.npm-cache/
+server/.order-id-sequence
+server/.portal-state.json
+server/.portal-state.json.tmp
+server/home-slider-assets/

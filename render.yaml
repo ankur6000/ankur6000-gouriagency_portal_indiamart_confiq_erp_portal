@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: gouri-agency-portal
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: gouri_agency
+      - key: ADMIN_LOGIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: GMAIL_USER
+        value: donotreplygouriagencymailbox@gmail.com
+      - key: GMAIL_SMTP_HOST
+        value: smtp.gmail.com
+      - key: GMAIL_SMTP_PORT
+        value: "465"
+      - key: GMAIL_SMTP_SECURE
+        value: "true"
+      - key: EMAIL_FROM
+        value: Gouri Agency <donotreplygouriagencymailbox@gmail.com>
+      - key: EMAIL_REPLY_TO
+        value: donotreplygouriagencymailbox@gmail.com
+      - key: GMAIL_ALLOWED_FROM_ADDRESSES
+        value: donotreplygouriagencymailbox@gmail.com
