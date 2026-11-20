@@ -11,6 +11,18 @@ const API = '/api'
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 const MAX_HOME_SLIDER_IMAGE_BYTES = 2 * 1024 * 1024
 
+async function readApiJson(response, fallbackMessage = 'The portal returned an unexpected response.') {
+  const contentType = response.headers.get('content-type') || ''
+  if (!contentType.toLowerCase().includes('application/json')) {
+    throw new Error(fallbackMessage)
+  }
+  try {
+    return await response.json()
+  } catch {
+    throw new Error(fallbackMessage)
+  }
+}
+
 function encodeUpload(file, label, acceptedTypes, maxBytes = MAX_UPLOAD_BYTES) {
   if (!file) return Promise.resolve(null)
   if (file.size > maxBytes) return Promise.reject(new Error(`${label} must be ${Math.floor(maxBytes / (1024 * 1024))} MB or smaller.`))
@@ -1893,8 +1905,18 @@ function App() {
       if (requestActive || document.visibilityState === 'hidden') return
       requestActive = true
       try {
-        const response = await fetch(`${API}/client/orders`, { cache: 'no-store', headers: { Authorization: `Bearer ${user.token}` } })
-        const data = await response.json()
+        let response
+        let data
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          response = await fetch(`${API}/client/orders`, { cache: 'no-store', headers: { Authorization: `Bearer ${user.token}` } })
+          try {
+            data = await readApiJson(response, 'Could not refresh your orders right now. Your latest order information is still shown, and the portal will retry automatically.')
+            break
+          } catch (error) {
+            if (attempt === 1) throw error
+            await new Promise(resolve => window.setTimeout(resolve, 700))
+          }
+        }
         if (!response.ok) throw new Error(data.error || 'Could not load your orders.')
         if (!cancelled) {
           setClientOrders(data.orders || [])
@@ -1922,6 +1944,11 @@ function App() {
       setPartnerOneName(user.profile.partnerOne || '')
       setPartnerTwoName(user.profile.partnerTwo || '')
       setAuthorizedSignatoryPartner('')
+      if (user.role === 'client') {
+        setItems([{ name: '', quantity: '' }])
+        setNotice('')
+        setNoticeIsError(false)
+      }
     }
     setPage(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -2072,8 +2099,9 @@ function App() {
   const submitOrder = async (e) => {
     e.preventDefault()
     if (!orderIntakeSettings.enabled) { setNotice(orderIntakeSettings.message); setNoticeIsError(true); return }
-    if (gstLookupStatus.state === 'checking') { setNotice('Please wait for GST verification to finish, or complete the details manually if it is unavailable.'); setNoticeIsError(true); return }
-    if (businessType === 'Partnership' && (!authorizedSignatoryPartner || !selectedPartnerDocumentsReady)) {
+    const quickClientOrder = user?.role === 'client' && user.profile
+    if (!quickClientOrder && gstLookupStatus.state === 'checking') { setNotice('Please wait for GST verification to finish, or complete the details manually if it is unavailable.'); setNoticeIsError(true); return }
+    if (!quickClientOrder && businessType === 'Partnership' && (!authorizedSignatoryPartner || !selectedPartnerDocumentsReady)) {
       setNotice('Upload the selected partner’s photo and signature before submitting this order.')
       setNoticeIsError(true)
       setPartnerUploadOpen(true)
@@ -2082,49 +2110,57 @@ function App() {
     setBusy(true); setNotice(''); setNoticeIsError(false)
     const formElement = e.currentTarget
     try {
-      let gstProof = gstVerification?.proof
-      const currentGstin = String(formElement.elements.gstNumber.value || '').trim().toUpperCase().replace(/\s+/g, '')
-      if (!user?.profile && !gstProof && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(currentGstin) && !gstLookupAttemptRef.current) {
-        window.clearTimeout(gstLookupTimerRef.current)
-        const verification = await verifyOrderGst(currentGstin, formElement)
-        gstProof = verification?.proof || null
-      }
-      const form = new FormData(formElement)
-      const signatureFile = formElement.elements.signature.files[0]
-      const signatureKey = signatureFile ? `${signatureFile.name}|${signatureFile.size}|${signatureFile.lastModified}` : ''
-      const savedAttachments = user?.profile?.attachments || {}
-      const mayReuseSavedSignatoryDocuments = businessType !== 'Partnership' || savedPartnerDocumentsMatch
-      const [profilePhoto, drugLicense, gstCopy, signature] = await Promise.all([
-        encodeUpload(formElement.elements.profilePhoto.files[0], businessType === 'Partnership' ? 'Partner photo' : 'Owner photo', ['image/jpeg', 'image/png']).then(upload => upload || (mayReuseSavedSignatoryDocuments ? savedAttachments.ownerPhoto || savedAttachments.profilePhoto || null : null)),
-        encodeUpload(formElement.elements.drugLicense.files[0], 'Drug license', ['application/pdf', 'image/jpeg']).then(upload => upload || savedAttachments.drugLicense || null),
-        encodeUpload(formElement.elements.gstCopy.files[0], 'GST copy', ['application/pdf', 'image/jpeg']).then(upload => upload || savedAttachments.gstCopy || null),
-        signatureFile ? (signaturePreview?.key === signatureKey ? signaturePreview.upload : extractSignature(signatureFile)) : Promise.resolve(mayReuseSavedSignatoryDocuments ? savedAttachments.signature || null : null)
-      ])
-      const payload = {
-        ownerName: form.get('ownerName'),
-        email: form.get('email'),
-        mobile: form.get('mobile'),
-        shopName: form.get('shopName'),
-        businessType: form.get('businessType'),
-        partnerOne: form.get('partnerOne'),
-        partnerTwo: form.get('partnerTwo'),
-        authorizedSignatoryName: form.get('businessType') === 'Partnership'
-          ? (form.get('authorizedSignatoryPartner') === 'partnerTwo' ? form.get('partnerTwo') : form.get('partnerOne'))
-          : form.get('ownerName'),
-        partnerDocumentSignatory: businessType === 'Partnership' ? selectedPartnerName : '',
-        shopAddress: form.get('shopAddress'),
-        pincode: form.get('pincode'),
-        city: form.get('city'),
-        state: form.get('state'),
-        country: form.get('country'),
-        gstNumber: form.get('gstNumber'),
-        gstVerificationProof: gstProof,
-        drugLicenseNumber: form.get('drugLicenseNumber'),
-        drugLicenseExpiresAt: form.get('drugLicenseExpiresAt'),
-        items: items.map(item => ({ name: item.name.trim(), quantity: item.quantity.trim() })),
-        remarks: form.get('remarks'),
-        declarationAccepted: form.get('declarationAccepted') === 'on',
-        attachments: { profilePhoto, drugLicense, gstCopy, signature }
+      let payload
+      if (quickClientOrder) {
+        const profile = user.profile
+        const signatory = profile.authorizedSignatoryName || (profile.businessType === 'Partnership' ? profile.partnerOne : profile.ownerName)
+        payload = {
+          ownerName: profile.ownerName || '', email: profile.email || user.email || '', mobile: profile.mobile || '',
+          shopName: profile.shopName || '', businessType: profile.businessType || 'Sole proprietorship',
+          partnerOne: profile.partnerOne || '', partnerTwo: profile.partnerTwo || '',
+          authorizedSignatoryName: signatory || '',
+          partnerDocumentSignatory: profile.businessType === 'Partnership' ? (signatory || '') : '',
+          shopAddress: profile.shopAddress || '', pincode: profile.pincode || '', city: profile.city || '',
+          state: profile.state || '', country: profile.country || 'India', gstNumber: profile.gstNumber || '',
+          drugLicenseNumber: profile.drugLicenseNumber || '', drugLicenseExpiresAt: profile.drugLicenseExpiresAt || '',
+          items: items.map(item => ({ name: item.name.trim(), quantity: item.quantity.trim() })),
+          remarks: '', declarationAccepted: true, attachments: {}
+        }
+      } else {
+        let gstProof = gstVerification?.proof
+        const currentGstin = String(formElement.elements.gstNumber.value || '').trim().toUpperCase().replace(/\s+/g, '')
+        if (!user?.profile && !gstProof && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(currentGstin) && !gstLookupAttemptRef.current) {
+          window.clearTimeout(gstLookupTimerRef.current)
+          const verification = await verifyOrderGst(currentGstin, formElement)
+          gstProof = verification?.proof || null
+        }
+        const form = new FormData(formElement)
+        const signatureFile = formElement.elements.signature.files[0]
+        const signatureKey = signatureFile ? `${signatureFile.name}|${signatureFile.size}|${signatureFile.lastModified}` : ''
+        const savedAttachments = user?.profile?.attachments || {}
+        const mayReuseSavedSignatoryDocuments = businessType !== 'Partnership' || savedPartnerDocumentsMatch
+        const [profilePhoto, drugLicense, gstCopy, signature] = await Promise.all([
+          encodeUpload(formElement.elements.profilePhoto.files[0], businessType === 'Partnership' ? 'Partner photo' : 'Owner photo', ['image/jpeg', 'image/png']).then(upload => upload || (mayReuseSavedSignatoryDocuments ? savedAttachments.ownerPhoto || savedAttachments.profilePhoto || null : null)),
+          encodeUpload(formElement.elements.drugLicense.files[0], 'Drug license', ['application/pdf', 'image/jpeg']).then(upload => upload || savedAttachments.drugLicense || null),
+          encodeUpload(formElement.elements.gstCopy.files[0], 'GST copy', ['application/pdf', 'image/jpeg']).then(upload => upload || savedAttachments.gstCopy || null),
+          signatureFile ? (signaturePreview?.key === signatureKey ? signaturePreview.upload : extractSignature(signatureFile)) : Promise.resolve(mayReuseSavedSignatoryDocuments ? savedAttachments.signature || null : null)
+        ])
+        payload = {
+          ownerName: form.get('ownerName'), email: form.get('email'), mobile: form.get('mobile'),
+          shopName: form.get('shopName'), businessType: form.get('businessType'),
+          partnerOne: form.get('partnerOne'), partnerTwo: form.get('partnerTwo'),
+          authorizedSignatoryName: form.get('businessType') === 'Partnership'
+            ? (form.get('authorizedSignatoryPartner') === 'partnerTwo' ? form.get('partnerTwo') : form.get('partnerOne'))
+            : form.get('ownerName'),
+          partnerDocumentSignatory: businessType === 'Partnership' ? selectedPartnerName : '',
+          shopAddress: form.get('shopAddress'), pincode: form.get('pincode'), city: form.get('city'),
+          state: form.get('state'), country: form.get('country'), gstNumber: form.get('gstNumber'),
+          gstVerificationProof: gstProof, drugLicenseNumber: form.get('drugLicenseNumber'),
+          drugLicenseExpiresAt: form.get('drugLicenseExpiresAt'),
+          items: items.map(item => ({ name: item.name.trim(), quantity: item.quantity.trim() })),
+          remarks: form.get('remarks'), declarationAccepted: form.get('declarationAccepted') === 'on',
+          attachments: { profilePhoto, drugLicense, gstCopy, signature }
+        }
       }
       const headers = { 'Content-Type': 'application/json' }
       if (user?.token && ['client', 'admin'].includes(user.role)) headers.Authorization = `Bearer ${user.token}`
@@ -2525,7 +2561,34 @@ function App() {
         </section>
       </main>}
 
-      {page === 'orders' && <main className="inner-page order-page">
+      {page === 'orders' && user?.role === 'client' && user.profile && <main className="inner-page order-page quick-client-order-page">
+        <div className="eyebrow"><span className="live-dot"/> NEW CLIENT ORDER</div>
+        <h1 className="inner-title">Place a new<br/><em>order.</em></h1>
+        <p className="inner-lede">Add the medicines and quantities. Your saved shop profile and documents will be attached automatically.</p>
+        {notice && <div className={`notice ${noticeIsError ? 'error' : ''}`} role={noticeIsError ? 'alert' : 'status'}>{noticeIsError ? <CircleHelp size={16}/> : <Check size={16}/>} {notice}</div>}
+        {!orderIntakeSettings.enabled && <div className="order-intake-closed-notice" role="alert"><strong>ORDER REQUESTS ARE TEMPORARILY CLOSED</strong><span>{orderIntakeSettings.message}</span></div>}
+        {user.profile.profileFrozen && <div className="license-freeze-alert" role="alert"><strong>Order access is frozen</strong><span>{user.profile.drugLicenseExpiryMissing ? 'The drug license expiry date is missing.' : `The drug license expired on ${user.profile.drugLicenseExpiresAt}.`} Ask an admin to record a valid expiry date before placing an order.</span></div>}
+        <div className="quick-order-profile-summary"><strong>{user.profile.shopName}</strong><span>GSTIN: {user.profile.gstNumber}</span><small>Profile details, regulatory documents, and saved signature are reused for this order.</small></div>
+        <form className="order-form quick-order-form" onSubmit={submitOrder}>
+          <fieldset className="order-form-fields" disabled={!orderIntakeSettings.enabled || Boolean(user.profile.profileFrozen)}>
+            <section className="medicine-section" aria-label="Medicine items">
+              <div className="medicine-heading"><div><h2>Medicine items</h2><p>Add a row for each medicine. Quantity can be boxes, pieces, or a combination.</p></div><button className="button outline add-item" type="button" onClick={() => setItems(prev => [...prev, { name: '', quantity: '' }])}><Plus size={15}/> Add item</button></div>
+              <div className="medicine-table-head"><span>Medicine name <RequiredMark/></span><span>Quantity / pcs <RequiredMark/></span><span className="sr-only">Remove item</span></div>
+              {items.map((item, index) => <div className="medicine-row" key={index}>
+                <label className="sr-only" htmlFor={`quick-item-name-${index}`}>Medicine name {index + 1}</label>
+                <input id={`quick-item-name-${index}`} value={item.name} onChange={event => updateItem(index, 'name', event.target.value)} placeholder="Medicine name" required />
+                <label className="sr-only" htmlFor={`quick-item-quantity-${index}`}>Quantity or pieces for item {index + 1}</label>
+                <input id={`quick-item-quantity-${index}`} type="text" inputMode="text" maxLength={60} value={item.quantity} onChange={event => updateItem(index, 'quantity', event.target.value)} placeholder="e.g. 10 boxes or 20 pcs" title="Enter a number, words, or both (up to 60 characters)." required />
+                <button className="remove-item" type="button" aria-label={`Remove item ${index + 1}`} disabled={items.length === 1} onClick={() => setItems(prev => prev.filter((_, itemIndex) => itemIndex !== index))}><X size={15}/></button>
+              </div>)}
+            </section>
+            <p className="quick-order-terms">Your registered profile agreement and order terms apply. Every order is submitted for admin approval.</p>
+            <button className="button dark" disabled={!orderIntakeSettings.enabled || busy || Boolean(user.profile.profileFrozen)}>{busy ? <LoadingAction loading label="Submitting order…"/> : <>Submit order for approval <ArrowUpRight size={16}/></>}</button>
+          </fieldset>
+        </form>
+      </main>}
+
+      {page === 'orders' && !(user?.role === 'client' && user.profile) && <main className="inner-page order-page">
         <div className="eyebrow"><span className="live-dot"/> ORDER REQUEST</div>
         <h1 className="inner-title">Shop order<br /><em>details.</em></h1>
         <p className="inner-lede">Add your shop information, medicine items, and required documents.</p>
