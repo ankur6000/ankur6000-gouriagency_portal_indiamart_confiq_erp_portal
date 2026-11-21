@@ -247,6 +247,36 @@
 .document-preview-pdf{width:100%;height:min(74vh,760px);border:1px solid #dce2db;border-radius:5px;background:#fff}
 .document-preview>.button{align-self:flex-end;min-height:40px}
 .client-orders-panel{margin-bottom:22px}
+.client-payment-batch{display:flex;flex-direction:column;gap:15px;margin:20px 24px 5px;padding:18px;border:1px solid #dbe5d8;border-radius:8px;background:linear-gradient(140deg,#f7faf5,#fff)}
+.client-payment-batch-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.client-payment-batch-heading h3{margin:5px 0;color:#24342a;font:600 18px 'Manrope',sans-serif}
+.client-payment-batch-heading p{margin:0;color:#78847a;font-size:10px;line-height:1.6}
+.client-payment-batch-orders{display:flex;flex-direction:column;border:1px solid #e2e8df;border-radius:6px;background:#fff}
+.client-payment-batch-order{display:flex;align-items:center;gap:12px;padding:10px 13px;border-bottom:1px solid #e9eee7;cursor:pointer}
+.client-payment-batch-order:last-child{border-bottom:0}
+.client-payment-batch-order input{width:16px;height:16px;margin:0;accent-color:#415c50}
+.client-payment-batch-order>span{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}
+.client-payment-batch-order>span strong{color:#34473a;font-size:10px}
+.client-payment-batch-order>span small{color:#839087;font-size:9px}
+.client-payment-batch-order>b{color:#3d5943;font-size:11px;white-space:nowrap}
+.client-payment-batch-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.client-payment-batch-footer>div:first-child{display:flex;flex-direction:column;gap:3px}
+.client-payment-batch-footer>div:first-child small{color:#778378;font-size:9px}
+.client-payment-batch-footer>div:first-child strong{color:#294333;font-size:13px}
+.client-payment-batch-gateways{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.client-payment-batch-gateways>button:not(.button){display:grid;min-width:105px;height:39px;place-items:center;padding:7px 10px;border:1px solid #dce3da;border-radius:5px;background:#fff}
+.client-payment-batch-gateways>button:not(.button).selected{border-color:#718a72;background:#f1f6ee;box-shadow:0 0 0 2px #415c5012}
+.client-payment-batch-gateways>button:not(.button):disabled{opacity:.45;cursor:not-allowed}
+.client-payment-batch-gateways img{display:block;width:82px;height:22px;object-fit:contain}
+.client-payment-batch-gateways img.cashfree-payment-logo{width:94px}
+.payment-success-allocation-list{display:flex;flex-direction:column;gap:0;margin:15px 0;padding:15px;border:1px solid #e0e8dd;border-radius:7px;background:#f8faf7}
+.payment-success-allocation-list>strong{margin-bottom:7px;color:#526457;font-size:10px}
+.payment-success-allocation-list article{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:10px 0;border-top:1px solid #e4eae1}
+.payment-success-allocation-list article>div{display:flex;flex-direction:column;gap:3px}
+.payment-success-allocation-list article b{color:#2f4435;font-size:11px}
+.payment-success-allocation-list article small{color:#7d887e;font-size:9px}
+.payment-success-allocation-list article>strong{color:#3d5943;font-size:11px}
+.payment-success-allocation-list article .button{min-height:33px;padding:0 10px;font-size:9px}
 .client-payment-list{display:flex;flex-direction:column}
 .client-payment-order{padding:20px 24px;border-bottom:1px solid var(--line)}
 .client-payment-order:last-child{border-bottom:0}
@@ -1006,3 +1036,4 @@ p{line-height:1.7}
 .communication-empty{margin:0;padding:14px 16px;border-radius:7px;background:#f5f7f4;color:#6b786f;font-size:12px;line-height:1.6}
 .communication-notice{color:#47714c;font-size:12px;line-height:1.5}.communication-notice.error{color:#b64438}
 @media(max-width:680px){.communication-client-picker,.communication-compose,.communication-thread{padding:15px}.communication-selected-client{align-items:flex-start;flex-direction:column}.communication-message{max-width:100%}.communication-message-heading{flex-direction:column;gap:6px}.communication-compose>.button{width:100%;justify-content:center}}
+@media(max-width:700px){.client-payment-batch{margin:17px 15px 4px;padding:14px}.client-payment-batch-heading{flex-direction:column}.client-payment-batch-footer{align-items:flex-start;flex-direction:column}.client-payment-batch-gateways{width:100%}.client-payment-batch-gateways>.button{flex:1}.payment-success-allocation-list article{grid-template-columns:minmax(0,1fr) auto;gap:8px}.payment-success-allocation-list article .button{grid-column:1/-1;justify-self:start}}

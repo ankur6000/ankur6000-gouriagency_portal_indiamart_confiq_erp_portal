@@ -866,7 +866,7 @@ function AdminPaymentControls({ order, token, onUpdated }) {
     <div className="payment-totals"><span>Paid: <strong>{formatMoney(order.amountPaid)}</strong></span><span>Balance: <strong>{formatMoney(balance)}</strong></span>{order.lastPaymentAt && <span>Last payment: <strong>{formatTimestamp(order.lastPaymentAt)}</strong></span>}</div>
     {order.promoApplied && <div className="admin-promo-record"><span>Promo {order.promoApplied.code}</span><span>Discount −{formatMoney(order.promoApplied.discount)}</span><span>Original total {formatMoney(order.amountDueBeforePromo)}</span></div>}
     {locked && <div className="payment-lock-note">{order.status === 'Cancelled' ? 'This cancelled order is locked. Payment history and refund status remain available below.' : `This fully paid order is locked until ${formatTimestamp(order.paymentEditLockedUntil)}. Order edits and payment review are paused during this period.`}</div>}
-      {!!order.payments?.length && <div className="payment-history"><strong>Client payment records</strong>{order.payments.map(payment => <article className="payment-record" key={payment.id}><div><b>{formatMoney(payment.amount)}{payment.provider ? ` · ${payment.provider}` : ''}</b><span>Ref: {payment.reference || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId}</span><small>{payment.paidAt ? `Paid ${formatTimestamp(payment.paidAt)}` : `Submitted ${formatTimestamp(payment.submittedAt)}`} · {paymentStatusLabel(payment)}</small></div><div className="payment-review-actions">{payment.status === 'Pending verification' && <><button type="button" className="button outline" disabled={Boolean(reviewing) || locked} onClick={() => reviewPayment(payment, 'Verified')}>{reviewing === payment.id ? <LoadingAction loading label="Saving payment…"/> : 'Confirm received'}</button><button type="button" className="button outline reject-payment" disabled={Boolean(reviewing) || locked} onClick={() => reviewPayment(payment, 'Rejected')}>Mark not received</button></>}{['Paid', 'Verified'].includes(payment.status) && <button type="button" className="button outline receipt-download-button" onClick={() => downloadProtectedPdf(`${API}/admin/orders/${encodeURIComponent(order.id)}/payments/${encodeURIComponent(payment.id)}/receipt`, token).catch(error => { setMessage(error.message); setIsError(true) })}>Download receipt <ArrowDown size={13}/></button>}</div></article>)}</div>}
+    {!!order.payments?.length && <div className="payment-history"><strong>Client payment records</strong>{order.payments.map(payment => <article className="payment-record" key={payment.id}><div><b>{formatMoney(payment.amount)}{payment.provider ? ` · ${payment.provider}` : ''}</b><span>Ref: {payment.reference || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId}</span>{payment.batchId && <small>Combined checkout allocation · {payment.batchOrderIds?.length || 2} orders</small>}<small>{payment.paidAt ? `Paid ${formatTimestamp(payment.paidAt)}` : `Submitted ${formatTimestamp(payment.submittedAt)}`} · {paymentStatusLabel(payment)}</small></div><div className="payment-review-actions">{payment.status === 'Pending verification' && <><button type="button" className="button outline" disabled={Boolean(reviewing) || locked} onClick={() => reviewPayment(payment, 'Verified')}>{reviewing === payment.id ? <LoadingAction loading label="Saving payment…"/> : 'Confirm received'}</button><button type="button" className="button outline reject-payment" disabled={Boolean(reviewing) || locked} onClick={() => reviewPayment(payment, 'Rejected')}>Mark not received</button></>}{['Paid', 'Verified'].includes(payment.status) && <button type="button" className="button outline receipt-download-button" onClick={() => downloadProtectedPdf(`${API}/admin/orders/${encodeURIComponent(order.id)}/payments/${encodeURIComponent(payment.id)}/receipt`, token).catch(error => { setMessage(error.message); setIsError(true) })}>Download receipt <ArrowDown size={13}/></button>}</div></article>)}</div>}
     {order.payments?.filter(payment => payment.refundFailureReason).map(payment => <small key={`refund-error-${payment.id}`} className="payment-failure-reason">{payment.id}: {payment.refundFailureReason}</small>)}
     {order.payments?.flatMap(payment => (payment.refunds || []).map(refund => <small key={`refund-${payment.id}-${refund.id || refund.receipt}`} className="refund-record-detail">Refund {refund.id || refund.receipt}: {formatMoney(refund.amount)} · {refund.status}</small>))}
     {order.status === 'Cancelled' && order.payments?.filter(payment => payment.status === 'Paid' && ['Razorpay', 'Cashfree'].includes(payment.provider) && payment.refundStatus === 'failed').map(payment => <button key={`refund-retry-${payment.id}`} type="button" className="button outline refund-retry-button" disabled={Boolean(reviewing)} onClick={() => retryRefund(payment)}>{reviewing === `refund-${payment.id}` ? <LoadingAction loading label="Retrying refund…"/> : `Retry failed ${payment.provider} refund`}</button>)}
@@ -1661,9 +1661,104 @@ function ClientPaymentOrder({ order, razorpayKeyId, cashfreeEnabled, cashfreeEnv
         </div>}
       </div>}
     </div>}
-    {order.payments?.length > 0 && <div className="client-payment-history"><strong>Payment history</strong>{order.payments.map(payment => <article key={payment.id}><div><span>{formatMoney(payment.amount)}{payment.provider ? ` · ${payment.provider}` : ''}</span><b className={`payment-status-label status-${String(payment.refundStatus || payment.status).toLowerCase().replace(/[^a-z]+/g, '-')}`}>{paymentStatusLabel(payment)}</b><small>{payment.paidAt ? `Paid ${formatTimestamp(payment.paidAt)}` : `Submitted ${formatTimestamp(payment.submittedAt)}`} · Reference: {payment.reference || payment.razorpayOrderId || payment.cashfreeOrderId || '—'}</small>{payment.failureReason && <small className="payment-failure-reason">{payment.failureReason}</small>}{payment.refundFailureReason && <small className="payment-failure-reason">Refund review: {payment.refundFailureReason}</small>}{(payment.refunds || []).map(refund => <small key={refund.id || refund.receipt} className="refund-record-detail">Refund {refund.id || refund.receipt}: {formatMoney(refund.amount)} · {refund.status}</small>)}</div>{['Paid', 'Verified'].includes(payment.status) && <button type="button" className="button outline receipt-download-button" onClick={() => downloadProtectedPdf(`${API}/client/orders/${encodeURIComponent(order.id)}/payments/${encodeURIComponent(payment.id)}/receipt`, token).catch(error => { setMessage(error.message); setIsError(true) })}>Download receipt <ArrowDown size={13}/></button>}</article>)}</div>}
+    {order.payments?.length > 0 && <div className="client-payment-history"><strong>Payment history</strong>{order.payments.map(payment => <article key={payment.id}><div><span>{formatMoney(payment.amount)}{payment.provider ? ` · ${payment.provider}` : ''}</span><b className={`payment-status-label status-${String(payment.refundStatus || payment.status).toLowerCase().replace(/[^a-z]+/g, '-')}`}>{paymentStatusLabel(payment)}</b><small>{payment.paidAt ? `Paid ${formatTimestamp(payment.paidAt)}` : `Submitted ${formatTimestamp(payment.submittedAt)}`} · Reference: {payment.reference || payment.razorpayOrderId || payment.cashfreeOrderId || '—'}</small>{payment.batchId && <small>Combined checkout allocation · {payment.batchOrderIds?.length || 2} orders</small>}{payment.failureReason && <small className="payment-failure-reason">{payment.failureReason}</small>}{payment.refundFailureReason && <small className="payment-failure-reason">Refund review: {payment.refundFailureReason}</small>}{(payment.refunds || []).map(refund => <small key={refund.id || refund.receipt} className="refund-record-detail">Refund {refund.id || refund.receipt}: {formatMoney(refund.amount)} · {refund.status}</small>)}</div>{['Paid', 'Verified'].includes(payment.status) && <button type="button" className="button outline receipt-download-button" onClick={() => downloadProtectedPdf(`${API}/client/orders/${encodeURIComponent(order.id)}/payments/${encodeURIComponent(payment.id)}/receipt`, token).catch(error => { setMessage(error.message); setIsError(true) })}>Download receipt <ArrowDown size={13}/></button>}</article>)}</div>}
     {message && <small className={`payment-message ${isError ? 'error' : ''}`} role={isError ? 'alert' : 'status'}>{message}</small>}
   </article>
+}
+
+function ClientPaymentBatch({ orders, razorpayKeyId, cashfreeEnabled, cashfreeEnvironment, token, onOrdersUpdated, onPaymentSuccess }) {
+  const [selectedIds, setSelectedIds] = useState([])
+  const [provider, setProvider] = useState(razorpayKeyId ? 'Razorpay' : cashfreeEnabled ? 'Cashfree' : 'Razorpay')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [isError, setIsError] = useState(false)
+  const availableOrders = orders.map(order => {
+    const pending = (order.payments || []).filter(payment => payment.status === 'Pending verification' || ['Razorpay payment processing', 'Cashfree payment processing'].includes(payment.status) || (['Awaiting Razorpay payment', 'Awaiting Cashfree payment'].includes(payment.status) && Date.parse(payment.expiresAt) > Date.now())).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+    const balance = order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - pending)
+    return { order, balance: Math.round(balance * 100) / 100 }
+  }).filter(item => item.balance > 0)
+  const payableOrders = availableOrders.filter(item => item.order.status !== 'Cancelled')
+  const selectedOrders = availableOrders.filter(item => selectedIds.includes(item.order.id) && item.order.status !== 'Cancelled')
+  const total = Math.round(selectedOrders.reduce((sum, item) => sum + item.balance, 0) * 100) / 100
+  const toggleOrder = orderId => setSelectedIds(current => current.includes(orderId) ? current.filter(id => id !== orderId) : [...current, orderId])
+  const allPayableSelected = payableOrders.length > 0 && payableOrders.every(item => selectedIds.includes(item.order.id))
+  const selectAll = () => setSelectedIds(allPayableSelected ? [] : payableOrders.map(item => item.order.id))
+  const updateFromResponse = data => { if (Array.isArray(data.orders)) onOrdersUpdated(data.orders) }
+  const reconcileBatch = async batchId => {
+    const response = await fetch(`${API}/client/payment-batches/${encodeURIComponent(batchId)}/reconcile`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } })
+    const data = await readApiJson(response, 'The combined payment status could not be refreshed yet.')
+    if (!response.ok) throw new Error(data.error || 'Could not reconcile this combined payment.')
+    updateFromResponse(data)
+    if (data.status === 'Paid') {
+      const allocations = data.allocations || []
+      const totalPaid = allocations.reduce((sum, allocation) => sum + Number(allocation.payment?.amount || 0), 0)
+      const hasRefund = allocations.some(allocation => allocation.refundSummary)
+      if (hasRefund) setMessage('The payment was received and allocated by order. A cancelled order allocation is being refunded.')
+      else onPaymentSuccess({ batchId, provider: data.provider, allocations, total: totalPaid, emailStatus: data.emailStatus })
+      setSelectedIds([])
+    } else if (data.status === 'Failed') {
+      setMessage(`${data.provider || provider} did not complete this payment. The selected order balances remain outstanding.`)
+      setIsError(true)
+    } else {
+      setMessage(`${data.provider || provider} is still confirming this payment. The order balances will update when it is verified.`)
+      setIsError(false)
+    }
+    return data
+  }
+  const startPayment = async () => {
+    if (selectedOrders.length < 2) { setMessage('Select at least two orders with an outstanding balance.'); setIsError(true); return }
+    if (provider === 'Razorpay' && !razorpayKeyId) { setMessage('Razorpay is not configured. Choose Cashfree if available.'); setIsError(true); return }
+    if (provider === 'Cashfree' && !cashfreeEnabled) { setMessage('Cashfree is not configured yet. Choose Razorpay if available.'); setIsError(true); return }
+    setBusy(true); setMessage(''); setIsError(false)
+    try {
+      const response = await fetch(`${API}/client/payment-batches/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ provider, orderIds: selectedOrders.map(item => item.order.id) }) })
+      const data = await readApiJson(response, 'Could not start the combined payment.')
+      if (!response.ok) throw new Error(data.error || 'Could not start the combined payment.')
+      updateFromResponse(data)
+      if (provider === 'Razorpay') {
+        await loadRazorpayCheckout()
+        const checkout = new window.Razorpay({
+          key: data.keyId,
+          amount: data.amountPaise,
+          currency: data.currency,
+          name: 'Gouri Agency',
+          description: `Payment for ${selectedOrders.length} orders`,
+          order_id: data.razorpayOrderId,
+          prefill: { name: selectedOrders[0]?.order.ownerName || selectedOrders[0]?.order.shopName, email: selectedOrders[0]?.order.email, contact: selectedOrders[0]?.order.mobile },
+          theme: { color: '#415c50' },
+          handler: async () => { try { await reconcileBatch(data.batchId) } catch (error) { setMessage(error.message || 'Payment is being reconciled.'); setIsError(false) } finally { setBusy(false) } },
+          modal: { ondismiss: async () => { try { await reconcileBatch(data.batchId) } catch (error) { setMessage(error.message || 'Checkout closed. We are still checking the payment status.'); setIsError(false) } finally { setBusy(false) } } }
+        })
+        checkout.on('payment.failed', async () => { try { await reconcileBatch(data.batchId) } catch (error) { setMessage(error.message || 'Payment status is still being reconciled.'); setIsError(true) } finally { setBusy(false) } })
+        checkout.open()
+      } else {
+        await loadCashfreeCheckout()
+        const cashfree = window.Cashfree({ mode: data.environment || cashfreeEnvironment || 'production' })
+        const result = await cashfree.checkout({ paymentSessionId: data.paymentSessionId, redirectTarget: '_modal' })
+        if (result?.redirect) {
+          setMessage('Cashfree is redirecting you to complete payment. Your selected order balances will update when confirmed.')
+          setIsError(false)
+          setBusy(false)
+          return
+        }
+        await reconcileBatch(data.batchId)
+        setBusy(false)
+      }
+    } catch (error) {
+      setMessage(error.message || 'Could not start the combined payment.')
+      setIsError(true)
+      setBusy(false)
+    }
+  }
+  useEffect(() => { if (!razorpayKeyId && cashfreeEnabled) setProvider('Cashfree'); else if (razorpayKeyId && !cashfreeEnabled) setProvider('Razorpay') }, [razorpayKeyId, cashfreeEnabled])
+  if (payableOrders.length < 2) return null
+  return <section className="client-payment-batch" aria-labelledby="combined-payment-title">
+    <div className="client-payment-batch-heading"><div><span className="eyebrow">ONE CHECKOUT · ORDER-WISE LEDGER</span><h3 id="combined-payment-title">Pay several orders together</h3><p>Select the order balances to combine. The payment will be split back to each order in both ledgers.</p></div><button type="button" className="text-button" onClick={selectAll}>{allPayableSelected ? 'Clear selection' : 'Select all payable'}</button></div>
+    <div className="client-payment-batch-orders">{payableOrders.map(({ order, balance }) => <label className="client-payment-batch-order" key={order.id}><input type="checkbox" checked={selectedIds.includes(order.id)} onChange={() => toggleOrder(order.id)} disabled={busy}/><span><strong>{order.id}</strong><small>{order.status} · {formatTimestamp(order.date)}</small></span><b>{formatMoney(balance)}</b></label>)}</div>
+    <div className="client-payment-batch-footer"><div><small>{selectedOrders.length} order{selectedOrders.length === 1 ? '' : 's'} selected</small><strong>Combined total {formatMoney(total)}</strong></div><div className="client-payment-batch-gateways"><button type="button" className={provider === 'Razorpay' ? 'selected' : ''} aria-pressed={provider === 'Razorpay'} onClick={() => setProvider('Razorpay')} disabled={!razorpayKeyId || busy}><img src="https://razorpay.com/build/browser/static/static/razorpay-logo.svg" alt="Razorpay"/></button><button type="button" className={provider === 'Cashfree' ? 'selected' : ''} aria-pressed={provider === 'Cashfree'} onClick={() => setProvider('Cashfree')} disabled={!cashfreeEnabled || busy}><img className="cashfree-payment-logo" src="https://cashfreelogo.cashfree.com/website/landings/homepage/cashfreeLogo.png" alt="Cashfree Payments"/></button><button type="button" className="button dark" onClick={startPayment} disabled={busy || selectedOrders.length < 2 || total < 1 || (provider === 'Razorpay' ? !razorpayKeyId : !cashfreeEnabled)}>{busy ? <LoadingAction loading label="Opening checkout…"/> : <>Pay selected orders <ArrowUpRight size={15}/></>}</button></div></div>
+    {!razorpayKeyId && !cashfreeEnabled && <small className="payment-setup-note">Online payment gateways are not configured. Ask the agency to enable Razorpay or Cashfree.</small>}
+    {message && <small className={`payment-message ${isError ? 'error' : ''}`} role={isError ? 'alert' : 'status'}>{message}</small>}
+  </section>
 }
 
 const clientDashboardTabs = [
@@ -1748,6 +1843,7 @@ function PaymentSuccessPage({ details, token, email, onReturn }) {
   const [receiptError, setReceiptError] = useState(false)
   const order = details?.order
   const payment = details?.payment
+  const allocations = details?.allocations || []
   const receiptPath = order && payment
     ? `${API}/client/orders/${encodeURIComponent(order.id)}/payments/${encodeURIComponent(payment.id)}/receipt`
     : ''
@@ -1783,16 +1879,17 @@ function PaymentSuccessPage({ details, token, email, onReturn }) {
       <div className="payment-success-check"><Check size={25}/></div>
       <span className="eyebrow">PAYMENT SUCCESSFUL</span>
       <h1 id="payment-success-title">Payment received.</h1>
-      <p>Your payment has been verified and the order balance has been updated.</p>
+      <p>{allocations.length > 0 ? 'The received amount was allocated to each selected order. Each client and admin ledger now shows its order-level payment.' : 'Your payment has been verified and the order balance has been updated.'}</p>
       {order && payment && <dl className="payment-success-details">
         <div><dt>Order number</dt><dd>{order.id}</dd></div>
         <div><dt>Amount received</dt><dd>{formatMoney(payment.amount)}</dd></div>
         <div><dt>Outstanding balance</dt><dd>{formatMoney(order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)))}</dd></div>
         <div><dt>Payment date and time</dt><dd>{formatTimestamp(payment.paidAt || payment.reviewedAt)}</dd></div>
       </dl>}
-      <p className={`payment-success-message${receiptError ? ' error' : ''}`} role={receiptError ? 'alert' : 'status'}>{receiptMessage}</p>
-      <p className="payment-success-email">{emailMessage}</p>
-      <div className="payment-success-actions"><button className="button dark" type="button" onClick={downloadReceipt}>Download receipt <ArrowDown size={15}/></button><button className="button outline" type="button" onClick={onReturn}>Return to dashboard <ArrowRight size={15}/></button></div>
+      {allocations.length > 0 && <><dl className="payment-success-details payment-batch-success-total"><div><dt>Gateway</dt><dd>{details.provider}</dd></div><div><dt>Total received</dt><dd>{formatMoney(details.total)}</dd></div><div><dt>Orders reconciled</dt><dd>{allocations.length}</dd></div></dl><div className="payment-success-allocation-list"><strong>Payment allocation by order</strong>{allocations.map(({ order: allocatedOrder, orderId, payment: allocatedPayment }) => <article key={`${orderId || allocatedOrder?.id}-${allocatedPayment?.id}`}><div><b>{orderId || allocatedOrder?.id}</b><small>{formatTimestamp(allocatedPayment?.paidAt || allocatedPayment?.submittedAt)} · {allocatedPayment?.provider || details.provider}</small></div><strong>{formatMoney(allocatedPayment?.amount)}</strong><button type="button" className="button outline" onClick={() => downloadProtectedPdf(`${API}/client/orders/${encodeURIComponent(orderId || allocatedOrder.id)}/payments/${encodeURIComponent(allocatedPayment.id)}/receipt`, token).catch(error => { setReceiptMessage(error.message || 'Could not download this order receipt.'); setReceiptError(true) })}>Receipt <ArrowDown size={13}/></button></article>)}</div></>}
+      <p className={`payment-success-message${receiptError ? ' error' : ''}`} role={receiptError ? 'alert' : 'status'}>{allocations.length > 0 ? 'Payment was reconciled order by order. Download each receipt below.' : receiptMessage}</p>
+      <p className="payment-success-email">{allocations.length > 0 ? details.emailStatus === 'sent' ? `Order-wise receipt PDFs were emailed for each selected order to ${email}.` : `Order-wise receipt PDFs are queued for ${email}.` : emailMessage}</p>
+      <div className="payment-success-actions">{receiptPath && <button className="button dark" type="button" onClick={downloadReceipt}>Download receipt <ArrowDown size={15}/></button>}<button className="button outline" type="button" onClick={onReturn}>Return to dashboard <ArrowRight size={15}/></button></div>
     </section>
   </main>
 }
@@ -2136,6 +2233,9 @@ function App() {
   const cashfreeReturnOrder = cashfreeReturnOrderId
     ? clientOrders.find(order => (order.payments || []).some(payment => payment.provider === 'Cashfree' && payment.cashfreeOrderId === cashfreeReturnOrderId))
     : null
+  const cashfreeReturnBatchPayment = cashfreeReturnOrderId
+    ? clientOrders.flatMap(order => (order.payments || []).filter(payment => payment.provider === 'Cashfree' && payment.cashfreeOrderId === cashfreeReturnOrderId && payment.batchId).map(payment => ({ order, payment })))[0]
+    : null
   useEffect(() => {
     if (user?.role !== 'client' || !user.token || !cashfreeReturnOrderId || !cashfreeReturnOrder) return
     const returnKey = `${user.token}:${cashfreeReturnOrderId}`
@@ -2148,23 +2248,35 @@ function App() {
     let cancelled = false
     const reconcileReturnedCheckout = async () => {
       try {
-        const response = await fetch(`${API}/client/orders/${encodeURIComponent(cashfreeReturnOrder.id)}/cashfree-reconcile`, {
+        const response = await fetch(cashfreeReturnBatchPayment
+          ? `${API}/client/payment-batches/${encodeURIComponent(cashfreeReturnBatchPayment.payment.batchId)}/reconcile`
+          : `${API}/client/orders/${encodeURIComponent(cashfreeReturnOrder.id)}/cashfree-reconcile`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
-          body: JSON.stringify({ cashfreeOrderId: cashfreeReturnOrderId })
+          ...(!cashfreeReturnBatchPayment ? { body: JSON.stringify({ cashfreeOrderId: cashfreeReturnOrderId }) } : {})
         })
         const data = await readApiJson(response, 'Cashfree returned you to the portal, but payment status could not be refreshed yet.')
         if (!response.ok) throw new Error(data.error || 'Could not confirm the Cashfree payment yet.')
         if (cancelled) return
-        setClientOrders(current => current.map(order => order.id === data.order.id ? data.order : order))
-        if (data.payment?.status === 'Paid' && !data.refundSummary) {
-          showPaymentSuccess({ order: data.order, payment: data.payment, emailStatus: data.emailStatus })
-        } else if (data.payment?.status === 'Paid') {
-          setClientOrderNotice(`Payment arrived after cancellation. ${data.refundSummary}`)
-        } else if (data.payment?.status === 'Failed') {
-          setClientOrderNotice(data.payment.failureReason || 'Cashfree did not complete this payment. You can retry from your orders.')
+        if (cashfreeReturnBatchPayment) {
+          setClientOrders(current => current.map(order => data.orders?.find(updated => updated.id === order.id) || order))
+          if (data.status === 'Paid') {
+            const allocations = data.allocations || []
+            if (allocations.some(allocation => allocation.refundSummary)) setClientOrderNotice('The combined payment was allocated by order. A cancelled order allocation is being refunded.')
+            else showPaymentSuccess({ batchId: data.batchId, provider: data.provider, allocations, total: allocations.reduce((sum, item) => sum + Number(item.payment?.amount || 0), 0), emailStatus: data.emailStatus })
+          } else if (data.status === 'Failed') setClientOrderNotice('Cashfree did not complete this combined payment. The order balances remain outstanding.')
+          else setClientOrderNotice('Cashfree is still confirming this combined payment. The balances will update as soon as it is verified.')
         } else {
-          setClientOrderNotice('Cashfree is still confirming this payment. Your balance will update as soon as the payment is verified.')
+          setClientOrders(current => current.map(order => order.id === data.order.id ? data.order : order))
+          if (data.payment?.status === 'Paid' && !data.refundSummary) {
+            showPaymentSuccess({ order: data.order, payment: data.payment, emailStatus: data.emailStatus })
+          } else if (data.payment?.status === 'Paid') {
+            setClientOrderNotice(`Payment arrived after cancellation. ${data.refundSummary}`)
+          } else if (data.payment?.status === 'Failed') {
+            setClientOrderNotice(data.payment.failureReason || 'Cashfree did not complete this payment. You can retry from your orders.')
+          } else {
+            setClientOrderNotice('Cashfree is still confirming this payment. Your balance will update as soon as the payment is verified.')
+          }
         }
       } catch (error) {
         if (!cancelled) setClientOrderNotice(error.message || 'Cashfree payment status is still being reconciled.')
@@ -2172,7 +2284,7 @@ function App() {
     }
     reconcileReturnedCheckout()
     return () => { cancelled = true }
-  }, [user?.role, user?.token, cashfreeReturnOrderId, cashfreeReturnOrder?.id])
+  }, [user?.role, user?.token, cashfreeReturnOrderId, cashfreeReturnOrder?.id, cashfreeReturnBatchPayment?.payment.batchId])
   const logout = async () => {
     if (user?.token) await fetch(`${API}/logout`, { method: 'POST', headers: { Authorization: `Bearer ${user.token}` } }).catch(() => {})
     setExternalPortal(null); setUser(null); setPaymentSuccess(null); go('home')
@@ -2781,7 +2893,7 @@ function App() {
           <div className="panel-heading"><div><span className="eyebrow">ORDERS & PAYMENTS</span><h2>Your orders and dues</h2></div><Package size={22}/></div>
           <PaymentSummary orders={clientOrders} title="Your overall balance" className="client-payment-overview"/>
           {clientOrderNotice && <div className="admin-notice" role="alert">{clientOrderNotice}</div>}
-          {clientOrders.length ? <div className="client-payment-list">{clientOrders.map(order => <ClientPaymentOrder key={order.id} order={order} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} token={user.token} currentTime={currentTime} onUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>)}</div> : <div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No orders or dues yet.</h3><p>Order balances set by the agency will appear here.</p></div>}
+          {clientOrders.length ? <><ClientPaymentBatch orders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} token={user.token} onOrdersUpdated={updatedOrders => setClientOrders(prev => prev.map(item => updatedOrders.find(updated => updated.id === item.id) || item))} onPaymentSuccess={showPaymentSuccess}/><div className="client-payment-list">{clientOrders.map(order => <ClientPaymentOrder key={order.id} order={order} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} token={user.token} currentTime={currentTime} onUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>)}</div></> : <div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No orders or dues yet.</h3><p>Order balances set by the agency will appear here.</p></div>}
         </div>}
         {clientTab === 'statements' && <section className="dash-panel client-statement-panel"><div className="panel-heading"><div><span className="eyebrow">ACCOUNT RECORDS</span><h2>Statements</h2><p>Download or email a date-range statement to your registered email.</p></div><Package size={22}/></div>{user?.profile && <StatementDownload profile={user.profile} orders={clientOrders} token={user.token}/>}</section>}
         {clientTab === 'messages' && <CommunicationsPanel token={user.token} role="client" profile={user?.profile}/>}

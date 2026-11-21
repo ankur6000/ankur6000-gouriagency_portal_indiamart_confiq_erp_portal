@@ -637,7 +637,8 @@ async function initiateCashfreeRefund(order, payment, { amount = null, reason = 
   try {
     const providerPayments = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/payments`)
     const providerPayment = (Array.isArray(providerPayments) ? providerPayments : providerPayments.payments || []).find(item => String(item.cf_payment_id) === String(payment.cashfreePaymentId))
-    if (!providerPayment || providerPayment.payment_status !== 'SUCCESS' || providerPayment.payment_currency !== 'INR' || Math.abs(Number(providerPayment.payment_amount) - Number(payment.amount || 0)) >= 0.005) throw new Error('Cashfree has not confirmed the exact INR payment amount, so it cannot be refunded yet.')
+    const expectedProviderAmount = Number(payment.batchTotalAmount || payment.amount || 0)
+    if (!providerPayment || providerPayment.payment_status !== 'SUCCESS' || providerPayment.payment_currency !== 'INR' || Math.abs(Number(providerPayment.payment_amount) - expectedProviderAmount) >= 0.005) throw new Error('Cashfree has not confirmed the exact INR payment amount, so it cannot be refunded yet.')
     const providerRefunds = []
     for (const local of payment.refunds || []) {
       if (!local.id) continue
@@ -1193,10 +1194,13 @@ async function initiateRazorpayRefund(order, payment, { amount = null, reason = 
     payment.refunds ||= []
     const refundsResponse = await razorpayRequest(`payments/${encodeURIComponent(payment.razorpayPaymentId)}/refunds?count=100`).catch(() => ({ items: [] }))
     const providerRefunds = Array.isArray(refundsResponse.items) ? refundsResponse.items : []
+    const receiptPrefix = `GA-${order.id}-${payment.id}-`
     for (const refund of providerRefunds) {
-      const local = payment.refunds.find(item => item.id === refund.id || (item.receipt && item.receipt === refund.receipt)) || {}
-      Object.assign(local, { id: refund.id, receipt: refund.receipt || local.receipt || '', amount: Number(refund.amount || 0) / 100, status: refund.status || local.status || 'pending', reason: local.reason || 'Existing Razorpay refund', updatedAt: new Date().toISOString() })
-      if (!payment.refunds.includes(local)) payment.refunds.push(local)
+      const local = payment.refunds.find(item => item.id === refund.id || (item.receipt && item.receipt === refund.receipt))
+      if (!local && !String(refund.receipt || '').startsWith(receiptPrefix)) continue
+      const matchingRefund = local || {}
+      Object.assign(matchingRefund, { id: refund.id, receipt: refund.receipt || matchingRefund.receipt || '', amount: Number(refund.amount || 0) / 100, status: refund.status || matchingRefund.status || 'pending', reason: matchingRefund.reason || 'Existing Razorpay refund', updatedAt: new Date().toISOString() })
+      if (!payment.refunds.includes(matchingRefund)) payment.refunds.push(matchingRefund)
     }
     updateRefundTotals(order, payment)
     const pendingAmount = payment.refunds.filter(refund => ['pending', 'initiating'].includes(refund.status)).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
@@ -1255,6 +1259,7 @@ async function markRazorpayPaymentFailed(order, payment, providerPayment, reason
   persistPortalState()
 }
 async function reconcileRazorpayPayment(order, payment) {
+  if (payment?.batchId) return reconcilePaymentBatch(payment.batchId, 'Razorpay')
   if (!RAZORPAY_CONFIGURED || !payment?.razorpayOrderId) return { status: payment?.status || 'unknown' }
   const collection = await razorpayRequest(`orders/${encodeURIComponent(payment.razorpayOrderId)}/payments?count=100`)
   const providerPayments = Array.isArray(collection.items) ? collection.items : []
@@ -1330,7 +1335,10 @@ async function reconcilePendingRazorpayPayments() {
       (['Failed', 'Cancelled', 'Razorpay payment processing'].includes(payment.status) && Date.parse(payment.reconcileUntil || '') > now && Date.parse(payment.nextReconcileAt || '') <= now)
     )
   ).map(payment => ({ order, payment }))).slice(0, 10)
+  const reconciledBatches = new Set()
   for (const { order, payment } of candidates) {
+    if (payment.batchId && reconciledBatches.has(payment.batchId)) continue
+    if (payment.batchId) reconciledBatches.add(payment.batchId)
     try { await reconcileRazorpayPayment(order, payment) }
     catch (error) { payment.reconcileError = String(error.message || 'Razorpay reconciliation is unavailable.').slice(0, 300); payment.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString(); persistPortalState() }
   }
@@ -1378,6 +1386,7 @@ async function markCashfreePaymentFailed(order, payment, providerPayment, reason
   persistPortalState()
 }
 async function reconcileCashfreePayment(order, payment) {
+  if (payment?.batchId) return reconcilePaymentBatch(payment.batchId, 'Cashfree')
   if (!CASHFREE_CONFIGURED || !payment?.cashfreeOrderId) return { status: payment?.status || 'unknown', payment }
   const response = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/payments`)
   const providerPayments = Array.isArray(response) ? response : Array.isArray(response.payments) ? response.payments : []
@@ -1444,6 +1453,122 @@ async function reconcileCashfreePayment(order, payment) {
   }
   return { status: payment.status || 'Awaiting Cashfree payment', payment }
 }
+const paymentBatchReconciliationsInProgress = new Set()
+function getPaymentBatchEntries(batchId) {
+  return orders.flatMap(order => (order.payments || [])
+    .filter(payment => payment.batchId === batchId)
+    .map(payment => ({ order, payment })))
+}
+function setPaymentBatchState(entries, status, providerName, reason = '') {
+  for (const { payment } of entries) {
+    payment.status = status
+    payment.reconcileUntil ||= new Date(Date.now() + PAYMENT_RECONCILIATION_WINDOW_MS).toISOString()
+    payment.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString()
+    if (reason) payment.reconciliationError = reason
+    else delete payment.reconciliationError
+  }
+  persistPortalState()
+  return { status, provider: providerName, allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+}
+async function reconcilePaymentBatch(batchId, providerName) {
+  const entries = getPaymentBatchEntries(batchId)
+  if (!entries.length) return { status: 'not_found', allocations: [] }
+  const paymentProvider = entries[0].payment.provider
+  if (entries.some(entry => entry.payment.provider !== paymentProvider) || (providerName && paymentProvider !== providerName)) return { status: 'mismatch', allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+  const configured = paymentProvider === 'Cashfree' ? CASHFREE_CONFIGURED : RAZORPAY_CONFIGURED
+  if (!configured) return { status: 'unavailable', allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+  const lockKey = `${paymentProvider}:${batchId}`
+  if (paymentBatchReconciliationsInProgress.has(lockKey)) return { status: 'processing', allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+  paymentBatchReconciliationsInProgress.add(lockKey)
+  try {
+    const firstPayment = entries[0].payment
+    const expectedAmount = Math.round(Number(firstPayment.batchTotalAmount || entries.reduce((sum, entry) => sum + Number(entry.payment.amount || 0), 0)) * 100)
+    if (!Number.isFinite(expectedAmount) || expectedAmount <= 0 || entries.some(entry => Math.round(Number(entry.payment.batchTotalAmount || 0) * 100) !== expectedAmount)) {
+      return setPaymentBatchState(entries, paymentProvider === 'Cashfree' ? 'Cashfree payment processing' : 'Razorpay payment processing', paymentProvider, 'The saved multi-order payment allocation does not match the checkout total. Agency review is required.')
+    }
+    let providerPayments = []
+    let successful = null
+    let failed = null
+    let unresolved = false
+    if (paymentProvider === 'Razorpay') {
+      if (!firstPayment.razorpayOrderId) return { status: 'mismatch', allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+      const collection = await razorpayRequest(`orders/${encodeURIComponent(firstPayment.razorpayOrderId)}/payments?count=100`)
+      providerPayments = Array.isArray(collection.items) ? collection.items : []
+      const matched = providerPayments.filter(item => Number(item.amount) === expectedAmount && item.currency === 'INR')
+      successful = matched.find(item => item.status === 'captured' || item.captured === true)
+      if (!successful) {
+        const authorized = matched.filter(item => item.status === 'authorized').sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))[0]
+        if (authorized?.id) {
+          try { await razorpayRequest(`payments/${encodeURIComponent(authorized.id)}/capture`, { method: 'POST', body: { amount: authorized.amount, currency: 'INR' } }) } catch { /* Provider status below is authoritative. */ }
+          const refreshed = await razorpayRequest(`payments/${encodeURIComponent(authorized.id)}`)
+          if (refreshed.status === 'captured' || refreshed.captured === true) successful = refreshed
+        }
+      }
+      if (!successful && providerPayments.some(item => item.status === 'captured' || item.captured === true)) {
+        return setPaymentBatchState(entries, 'Razorpay payment processing', paymentProvider, 'Razorpay reported a capture whose amount or currency does not match the selected orders.')
+      }
+      unresolved = matched.some(item => ['created', 'authorized', 'pending'].includes(item.status))
+      failed = matched.filter(item => item.status === 'failed').sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))[0]
+    } else {
+      if (!firstPayment.cashfreeOrderId) return { status: 'mismatch', allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+      const collection = await cashfreeRequest(`orders/${encodeURIComponent(firstPayment.cashfreeOrderId)}/payments`)
+      providerPayments = Array.isArray(collection) ? collection : Array.isArray(collection.payments) ? collection.payments : []
+      const matched = providerPayments.filter(item => Math.abs(Number(item.payment_amount) - expectedAmount / 100) < 0.005 && item.payment_currency === 'INR')
+      successful = matched.filter(item => String(item.payment_status || '').toUpperCase() === 'SUCCESS').sort((a, b) => Date.parse(b.payment_time || '') - Date.parse(a.payment_time || ''))[0]
+      if (!successful && providerPayments.some(item => String(item.payment_status || '').toUpperCase() === 'SUCCESS')) {
+        return setPaymentBatchState(entries, 'Cashfree payment processing', paymentProvider, 'Cashfree reported a successful payment whose amount or currency does not match the selected orders.')
+      }
+      unresolved = matched.some(item => ['PENDING', 'NOT_ATTEMPTED'].includes(String(item.payment_status || '').toUpperCase()))
+      failed = matched.filter(item => ['FAILED', 'USER_DROPPED', 'CANCELLED'].includes(String(item.payment_status || '').toUpperCase())).sort((a, b) => Date.parse(b.payment_time || '') - Date.parse(a.payment_time || ''))[0]
+    }
+    if (successful) {
+      const providerPaymentId = paymentProvider === 'Cashfree' ? String(successful.cf_payment_id || '') : String(successful.id || '')
+      const exactAmount = paymentProvider === 'Cashfree' ? Math.abs(Number(successful.payment_amount) * 100 - expectedAmount) < 0.5 && successful.payment_currency === 'INR' : Number(successful.amount) === expectedAmount && successful.currency === 'INR'
+      if (!providerPaymentId || !exactAmount) return setPaymentBatchState(entries, `${paymentProvider} payment processing`, paymentProvider, 'The confirmed payment ID, amount, or currency could not be verified.')
+      for (const { order, payment } of entries) {
+        const alreadyPaid = payment.status === 'Paid' && payment.batchFinalizedAt && (paymentProvider === 'Cashfree' ? payment.cashfreePaymentId === providerPaymentId : payment.razorpayPaymentId === providerPaymentId)
+        if (!alreadyPaid) {
+          await finalizeConfirmedPayment(order, payment, {
+            status: 'Paid',
+            reference: paymentProvider === 'Cashfree' ? successful.bank_reference || providerPaymentId : providerPaymentId,
+            razorpayPaymentId: paymentProvider === 'Razorpay' ? providerPaymentId : '',
+            cashfreePaymentId: paymentProvider === 'Cashfree' ? providerPaymentId : ''
+          })
+          payment.batchFinalizedAt = new Date().toISOString()
+        }
+        payment.reconcileUntil = ''
+        payment.nextReconcileAt = ''
+        if (order.status === 'Cancelled' && payment.refundStatus !== 'processed' && payment.refundStatus !== 'pending') {
+          try { await initiateOnlineRefund(order, payment, { reason: 'Late payment after client cancellation', suffix: 'late-cancel' }) }
+          catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }) }
+        }
+      }
+      persistPortalState()
+      return { status: 'Paid', provider: paymentProvider, allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment, refundSummary: entry.order.status === 'Cancelled' ? entry.payment.refundStatus || 'Refund submitted' : '' })) }
+    }
+    if (failed && !unresolved) {
+      for (const { order, payment } of entries) {
+        if (paymentProvider === 'Cashfree') await markCashfreePaymentFailed(order, payment, failed, failed.payment_message || '')
+        else await markRazorpayPaymentFailed(order, payment, failed, failed.error_description || failed.error_reason || '')
+      }
+      return { status: 'Failed', provider: paymentProvider, allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+    }
+    const expired = !providerPayments.length && Date.parse(firstPayment.expiresAt || '') <= Date.now()
+    if (expired) {
+      for (const { order, payment } of entries) {
+        if (paymentProvider === 'Cashfree') await markCashfreePaymentFailed(order, payment, null, 'The checkout expired before Cashfree recorded a payment.')
+        else await markRazorpayPaymentFailed(order, payment, null, 'The checkout expired before Razorpay recorded a payment.')
+      }
+      return { status: 'Failed', provider: paymentProvider, allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+    }
+    if (unresolved || (providerPayments.length && !failed)) {
+      return setPaymentBatchState(entries, paymentProvider === 'Cashfree' ? 'Cashfree payment processing' : 'Razorpay payment processing', paymentProvider)
+    }
+    return { status: firstPayment.status || `Awaiting ${paymentProvider} payment`, provider: paymentProvider, allocations: entries.map(entry => ({ orderId: entry.order.id, payment: entry.payment })) }
+  } finally {
+    paymentBatchReconciliationsInProgress.delete(lockKey)
+  }
+}
 async function reconcilePendingCashfreePayments() {
   if (!CASHFREE_CONFIGURED) return
   const now = Date.now()
@@ -1453,7 +1578,10 @@ async function reconcilePendingCashfreePayments() {
       (['Failed', 'Cancelled', 'Cashfree payment processing'].includes(payment.status) && Date.parse(payment.reconcileUntil || '') > now && Date.parse(payment.nextReconcileAt || '') <= now)
     )
   ).map(payment => ({ order, payment }))).slice(0, 10)
+  const reconciledBatches = new Set()
   for (const { order, payment } of candidates) {
+    if (payment.batchId && reconciledBatches.has(payment.batchId)) continue
+    if (payment.batchId) reconciledBatches.add(payment.batchId)
     try { await reconcileCashfreePayment(order, payment) }
     catch (error) { payment.reconcileError = String(error.message || 'Cashfree reconciliation is unavailable.').slice(0, 300); payment.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString(); persistPortalState() }
   }
@@ -2042,28 +2170,35 @@ const server = http.createServer(async (req, res) => {
       const order = orders.find(item => (item.payments || []).some(payment => payment.razorpayOrderId === entity.order_id))
       if (!order) return json(res, 404, { error: 'No portal order matches this Razorpay payment.' })
       const payment = (order.payments || []).find(item => item.razorpayOrderId === entity.order_id)
-      if (!payment || Math.round(Number(payment.amount) * 100) !== Number(entity.amount) || entity.currency !== 'INR') {
+      if (payment?.batchId) {
+        await reconcilePaymentBatch(payment.batchId, 'Razorpay')
+      } else if (!payment || Math.round(Number(payment.amount) * 100) !== Number(entity.amount) || entity.currency !== 'INR') {
         return json(res, 409, { error: 'Captured payment amount or currency does not match the portal checkout.' })
-      }
-      await finalizeConfirmedPayment(order, payment, { status: 'Paid', reference: entity.id, razorpayPaymentId: entity.id })
-      payment.reconcileUntil = ''
-      payment.nextReconcileAt = ''
-      if (order.status === 'Cancelled') {
-        try { await initiateRazorpayRefund(order, payment, { reason: 'Late capture after client cancellation', suffix: 'late-cancel' }) }
-        catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }) }
+      } else {
+        await finalizeConfirmedPayment(order, payment, { status: 'Paid', reference: entity.id, razorpayPaymentId: entity.id })
+        payment.reconcileUntil = ''
+        payment.nextReconcileAt = ''
+        if (order.status === 'Cancelled') {
+          try { await initiateRazorpayRefund(order, payment, { reason: 'Late capture after client cancellation', suffix: 'late-cancel' }) }
+          catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }) }
+        }
       }
     } else if (event.event === 'payment.failed') {
       if (!entity?.id || !entity.order_id || entity.status !== 'failed') return json(res, 400, { error: 'Failed payment details are incomplete.' })
       const order = orders.find(item => (item.payments || []).some(payment => payment.razorpayOrderId === entity.order_id))
       if (!order) return json(res, 404, { error: 'No portal order matches this Razorpay payment.' })
       const payment = (order.payments || []).find(item => item.razorpayOrderId === entity.order_id)
-      if (!payment || Math.round(Number(payment.amount) * 100) !== Number(entity.amount) || entity.currency !== 'INR') return json(res, 409, { error: 'Failed payment amount or currency does not match the portal checkout.' })
-      await markRazorpayPaymentFailed(order, payment, entity, entity.error_description || entity.error_reason || '')
+      if (payment?.batchId) await reconcilePaymentBatch(payment.batchId, 'Razorpay')
+      else {
+        if (!payment || Math.round(Number(payment.amount) * 100) !== Number(entity.amount) || entity.currency !== 'INR') return json(res, 409, { error: 'Failed payment amount or currency does not match the portal checkout.' })
+        await markRazorpayPaymentFailed(order, payment, entity, entity.error_description || entity.error_reason || '')
+      }
     } else if (['refund.processed', 'refund.failed', 'refund.created', 'refund.updated'].includes(event.event)) {
       if (!entity?.id || !entity.payment_id || !['processed', 'failed', 'pending'].includes(entity.status)) return json(res, 400, { error: 'Refund details are incomplete.' })
-      const order = orders.find(item => (item.payments || []).some(payment => payment.razorpayPaymentId === entity.payment_id))
-      if (!order) return json(res, 404, { error: 'No portal payment matches this Razorpay refund.' })
-      const payment = (order.payments || []).find(item => item.razorpayPaymentId === entity.payment_id)
+      const candidates = orders.flatMap(item => (item.payments || []).filter(payment => payment.razorpayPaymentId === entity.payment_id).map(payment => ({ order: item, payment })))
+      const match = candidates.find(({ payment }) => payment.refunds?.some(refund => refund.id === entity.id || (entity.receipt && refund.receipt === entity.receipt))) || candidates[0]
+      if (!match) return json(res, 404, { error: 'No portal payment matches this Razorpay refund.' })
+      const { order, payment } = match
       payment.refunds ||= []
       const refund = payment.refunds.find(item => item.id === entity.id || (item.receipt && item.receipt === entity.receipt)) || {}
       Object.assign(refund, { id: entity.id, receipt: entity.receipt || refund.receipt || '', amount: Number(entity.amount || 0) / 100, status: entity.status, reason: refund.reason || 'Client order cancellation', updatedAt: new Date().toISOString() })
@@ -2099,16 +2234,18 @@ const server = http.createServer(async (req, res) => {
       const payment = (order.payments || []).find(item => item.provider === 'Cashfree' && item.cashfreeOrderId === cashfreeOrderId)
       if (payment) await reconcileCashfreePayment(order, payment)
     } else if (order && ['REFUND_STATUS_WEBHOOK', 'AUTO_REFUND_STATUS_WEBHOOK'].includes(eventType) && webhookRefund) {
-      const payment = (order.payments || []).find(item => item.provider === 'Cashfree' && (item.cashfreeOrderId === cashfreeOrderId || String(item.cashfreePaymentId) === String(webhookRefund.cf_payment_id || '')))
-      if (payment) {
+      const candidates = orders.flatMap(item => (item.payments || []).filter(payment => payment.provider === 'Cashfree' && (payment.cashfreeOrderId === cashfreeOrderId || String(payment.cashfreePaymentId) === String(webhookRefund.cf_payment_id || ''))).map(payment => ({ order: item, payment })))
+      const refundKey = String(webhookRefund.refund_id || webhookRefund.cf_refund_id || '')
+      const match = candidates.find(({ payment }) => payment.refunds?.some(item => item.id === refundKey || item.providerRefundId === String(webhookRefund.cf_refund_id || ''))) || candidates[0]
+      if (match) {
+        const { order: refundOrder, payment } = match
         payment.refunds ||= []
-        const refundKey = String(webhookRefund.refund_id || webhookRefund.cf_refund_id || '')
         const refund = payment.refunds.find(item => item.id === refundKey || item.providerRefundId === String(webhookRefund.cf_refund_id || '')) || {}
         const previousStatus = payment.refundStatus
         updateCashfreeRefundRecord(payment, webhookRefund, refund)
-        updateRefundTotals(order, payment)
+        updateRefundTotals(refundOrder, payment)
         persistPortalState()
-        if (previousStatus !== payment.refundStatus) await emailPaymentStateChange(order, 'Refund status updated', [['Payment provider', 'Cashfree'], ['Payment reference', payment.cashfreePaymentId || webhookRefund.cf_payment_id || ''], ['Cashfree refund ID', refund.id], ['Refund status', payment.refundStatus], ['Refunded amount', formatINR(payment.amountRefunded)], ['Order balance', formatINR(order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)))]], `Cashfree updated the refund status for order ${order.id}. The current refund details are listed below.`)
+        if (previousStatus !== payment.refundStatus) await emailPaymentStateChange(refundOrder, 'Refund status updated', [['Payment provider', 'Cashfree'], ['Payment reference', payment.cashfreePaymentId || webhookRefund.cf_payment_id || ''], ['Cashfree refund ID', refund.id], ['Refund status', payment.refundStatus], ['Refunded amount', formatINR(payment.amountRefunded)], ['Order balance', formatINR(refundOrder.status === 'Cancelled' ? 0 : Math.max(0, Number(refundOrder.amountDue || 0) - Number(refundOrder.amountPaid || 0)))]], `Cashfree updated the refund status for order ${refundOrder.id}. The current refund details are listed below.`)
       }
     }
     processedCashfreeEvents.add(eventKey)
@@ -2332,6 +2469,124 @@ const server = http.createServer(async (req, res) => {
     const payment = (order.payments || []).find(item => item.id === decodeURIComponent(receiptPath[2]))
     if (!payment) return json(res, 404, { error: 'Payment record not found.' })
     return sendPaymentReceipt(res, order, payment)
+  }
+  if (req.method === 'POST' && url.pathname === '/api/client/payment-batches/checkout') {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !clientSessions.has(token)) return json(res, 401, { error: 'Client sign-in required.' })
+    const profileId = clientSessions.get(token)
+    const body = await readJson(req, res)
+    if (!body) return
+    const provider = body.provider === 'Cashfree' ? 'Cashfree' : body.provider === 'Razorpay' ? 'Razorpay' : ''
+    if (!provider) return json(res, 400, { error: 'Choose Razorpay or Cashfree for a combined order payment.' })
+    if (provider === 'Cashfree' && !CASHFREE_CONFIGURED) return json(res, 503, { error: 'Cashfree checkout is not configured on the server.' })
+    if (provider === 'Razorpay' && !RAZORPAY_CONFIGURED) return json(res, 503, { error: 'Razorpay checkout is not configured on the server.' })
+    const requestedIds = Array.isArray(body.orderIds) ? [...new Set(body.orderIds.map(value => String(value || '').trim()).filter(Boolean))] : []
+    if (requestedIds.length < 2 || requestedIds.length > 100) return json(res, 400, { error: 'Select at least two orders, and no more than 100, to make a combined payment.' })
+    const selectedOrders = requestedIds.map(id => orders.find(order => order.id === id && order.profileId === profileId))
+    if (selectedOrders.some(order => !order)) return json(res, 404, { error: 'One or more selected orders do not belong to this client profile.' })
+    const allocations = selectedOrders.map(order => {
+      const reserved = reservedPaymentTotal(order)
+      const amount = Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - reserved)
+      return { order, amount: Math.round(amount * 100) / 100 }
+    })
+    if (allocations.some(({ order, amount }) => order.status === 'Cancelled' || amount <= 0)) return json(res, 409, { error: 'Every selected order must be active and have an unpaid balance available for payment. Refresh the list and select again.' })
+    const totalAmount = Math.round(allocations.reduce((sum, item) => sum + item.amount, 0) * 100) / 100
+    const amountPaise = Math.round(totalAmount * 100)
+    if (amountPaise < 100) return json(res, 400, { error: 'Combined online payments must total at least INR 1.00.' })
+    const profile = [...profilesByGst.values()].find(item => item.id === profileId)
+    const now = new Date().toISOString()
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    const batchId = `BATCH-${randomUUID()}`
+    const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim()
+    const requestProtocol = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim()
+    const publicUrl = PORTAL_PUBLIC_URL || `${requestProtocol}://${requestHost}`
+    if (!/^https:\/\//i.test(publicUrl) && provider === 'Cashfree') return json(res, 500, { error: 'Set PORTAL_PUBLIC_URL to the public HTTPS website address.' })
+    try {
+      let checkoutDetails
+      if (provider === 'Razorpay') {
+        const receipt = `GAB-${randomUUID().replace(/-/g, '').slice(0, 20)}`.slice(0, 40)
+        const razorpayOrder = await razorpayRequest('orders', { method: 'POST', body: {
+          amount: amountPaise,
+          currency: 'INR',
+          receipt,
+          notes: { gouri_batch_id: batchId, gouri_order_ids: requestedIds.join(',').slice(0, 250) }
+        } })
+        if (!razorpayOrder.id || Number(razorpayOrder.amount) !== amountPaise || razorpayOrder.currency !== 'INR') throw new Error('Razorpay did not create a matching combined-payment order.')
+        checkoutDetails = { keyId: RAZORPAY_KEY_ID, razorpayOrderId: String(razorpayOrder.id) }
+      } else {
+        const customerPhone = String(profile?.mobile || '').replace(/\D/g, '').slice(-10)
+        if (!/^\d{10}$/.test(customerPhone)) return json(res, 400, { error: 'A valid registered 10-digit mobile number is required for Cashfree checkout.' })
+        const cashfreeOrderId = `cfb_${randomUUID().replace(/-/g, '').slice(0, 24)}`
+        const returnUrl = new URL('/', publicUrl)
+        returnUrl.searchParams.set('cashfree_order_id', cashfreeOrderId)
+        const cashfreeOrder = await cashfreeRequest('orders', { method: 'POST', body: {
+          order_id: cashfreeOrderId,
+          order_amount: totalAmount,
+          order_currency: 'INR',
+          customer_details: {
+            customer_id: String(profile?.id || profileId || 'client').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 50),
+            customer_name: String(profile?.ownerName || profile?.shopName || 'Gouri Agency Client').slice(0, 100),
+            customer_email: String(profile?.email || '').slice(0, 100),
+            customer_phone: customerPhone
+          },
+          order_meta: { return_url: returnUrl.toString(), notify_url: new URL('/api/webhooks/cashfree', publicUrl).toString() },
+          order_note: `Combined payment for ${requestedIds.length} Gouri Agency orders`.slice(0, 200),
+          order_tags: { gouri_batch_id: batchId, gouri_order_count: String(requestedIds.length) }
+        } })
+        if (!cashfreeOrder.payment_session_id || !cashfreeOrder.order_id) throw new Error('Cashfree did not return a valid combined payment session.')
+        checkoutDetails = { cashfreeOrderId: String(cashfreeOrder.order_id), paymentSessionId: String(cashfreeOrder.payment_session_id), environment: CASHFREE_ENVIRONMENT }
+      }
+      for (const { order, amount } of allocations) {
+        const payment = {
+          id: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`,
+          amount,
+          batchId,
+          batchTotalAmount: totalAmount,
+          batchOrderIds: requestedIds,
+          reference: `${provider} combined checkout started`,
+          provider,
+          status: provider === 'Cashfree' ? 'Awaiting Cashfree payment' : 'Awaiting Razorpay payment',
+          submittedAt: now,
+          expiresAt,
+          ...(provider === 'Cashfree' ? { cashfreeOrderId: checkoutDetails.cashfreeOrderId, cashfreePaymentSessionId: checkoutDetails.paymentSessionId } : { razorpayOrderId: checkoutDetails.razorpayOrderId })
+        }
+        order.payments ||= []
+        order.payments.unshift(payment)
+      }
+      persistPortalState()
+      return json(res, 201, {
+        batchId,
+        provider,
+        amount: totalAmount,
+        amountPaise,
+        currency: 'INR',
+        orders: allocations.map(({ order }) => clientOrderForDashboard(order)),
+        ...checkoutDetails
+      })
+    } catch (error) {
+      return json(res, 502, { error: error.message || `Could not start ${provider} combined checkout.` })
+    }
+  }
+  if (req.method === 'POST' && url.pathname.startsWith('/api/client/payment-batches/') && url.pathname.endsWith('/reconcile')) {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !clientSessions.has(token)) return json(res, 401, { error: 'Client sign-in required.' })
+    const batchId = decodeURIComponent(url.pathname.slice('/api/client/payment-batches/'.length, -'/reconcile'.length))
+    const profileId = clientSessions.get(token)
+    const entries = getPaymentBatchEntries(batchId)
+    if (!entries.length || entries.some(entry => entry.order.profileId !== profileId)) return json(res, 404, { error: 'Combined payment was not found in this customer profile.' })
+    let result
+    try { result = await reconcilePaymentBatch(batchId, entries[0].payment.provider) }
+    catch (error) { return json(res, 502, { error: error.message || 'Could not reconcile the combined payment yet.' }) }
+    const updatedEntries = getPaymentBatchEntries(batchId)
+    const updatedOrders = [...new Map(updatedEntries.map(entry => [entry.order.id, entry.order])).values()]
+    return json(res, 200, {
+      batchId,
+      status: result.status,
+      provider: result.provider || entries[0].payment.provider,
+      orders: updatedOrders.map(clientOrderForDashboard),
+      allocations: updatedEntries.map(({ order, payment }) => ({ orderId: order.id, order: clientOrderForDashboard(order), payment })),
+      emailStatus: updatedEntries.every(entry => entry.payment.emailStatus === 'sent') ? 'sent' : updatedEntries.some(entry => entry.payment.emailStatus === 'needs_configuration') ? 'needs_configuration' : 'queued'
+    })
   }
   if (req.method === 'POST' && url.pathname.startsWith('/api/client/orders/') && url.pathname.endsWith('/cashfree-checkout')) {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
