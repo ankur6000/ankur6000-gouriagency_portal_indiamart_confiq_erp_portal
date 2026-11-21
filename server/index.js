@@ -167,6 +167,22 @@ function normalizeHomeSlider(settings) {
     })
   }
 }
+function normalizeHomeNotices(items) {
+  if (!Array.isArray(items)) return []
+  return items.slice(0, 200).map(item => {
+    const title = typeof item?.title === 'string' ? item.title.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) : ''
+    const body = typeof item?.body === 'string' ? item.body.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim().slice(0, 8000) : ''
+    const createdTimestamp = Date.parse(item?.createdAt || '')
+    if (!title || !body || typeof item?.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(item.id)) return null
+    return {
+      id: item.id.toLowerCase(),
+      title,
+      body,
+      priority: item.priority === 'high' ? 'high' : 'standard',
+      createdAt: Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : new Date().toISOString()
+    }
+  }).filter(Boolean).sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
+}
 const homeSliderDirectory = new URL('./home-slider-assets/', import.meta.url)
 function normalizePaymentSettings(settings) {
   const bank = settings?.bankTransfer || {}
@@ -224,6 +240,7 @@ function normalizePortalState(state = {}) {
     emailSettings: normalizeEmailSettings(state.emailSettings),
     adminCredentials: normalizeAdminCredentialRecord(state.adminCredentials),
     homeSlider: normalizeHomeSlider(state.homeSlider),
+    notices: normalizeHomeNotices(state.notices),
     nextEmailSerial: Number.isSafeInteger(state.nextEmailSerial) && state.nextEmailSerial >= 100000000000000 && state.nextEmailSerial <= 999999999999999 ? state.nextEmailSerial : null,
     nextProfileId: Number.isInteger(state.nextProfileId) && state.nextProfileId >= 1001 ? state.nextProfileId : 1001,
     nextOrderId: Number.isInteger(state.nextOrderId) && state.nextOrderId >= 1 && state.nextOrderId <= 1000000 ? state.nextOrderId : loadLegacyNextOrderId()
@@ -253,6 +270,7 @@ const profilesByGst = new Map(savedState.profiles.map(profile => [String(profile
 const trash = savedState.trash
 const emailOutbox = savedState.emailOutbox
 const communicationMessages = savedState.communicationMessages
+const notices = savedState.notices
 const processedRazorpayEvents = new Set(savedState.processedRazorpayEvents)
 const processedCashfreeEvents = new Set(savedState.processedCashfreeEvents)
 let paymentSettings = normalizePaymentSettings(savedState.paymentSettings)
@@ -296,6 +314,7 @@ function installPortalState(state) {
   emailSettings = normalized.emailSettings
   adminCredentials = normalized.adminCredentials
   homeSlider = normalized.homeSlider
+  notices.splice(0, notices.length, ...normalized.notices)
   const latestSerial = emailOutbox.reduce((latest, job) => Math.max(latest, /^\d{15}$/.test(job.serial || '') ? Number(job.serial) : 0), 0)
   nextEmailSerial = Math.max(normalized.nextEmailSerial || createEmailSerialSeed(), latestSerial + 1)
   nextProfileId = normalized.nextProfileId
@@ -335,7 +354,7 @@ async function refreshPortalStateFromAtlas({ force = false, required = false } =
   }
 }
 function persistPortalState() {
-  const snapshot = gzipSync(Buffer.from(JSON.stringify({ version: 1, orders, profiles: [...profilesByGst.values()], trash, emailOutbox, communicationMessages, processedRazorpayEvents: [...processedRazorpayEvents], processedCashfreeEvents: [...processedCashfreeEvents], paymentSettings, emailSettings, adminCredentials, homeSlider, nextEmailSerial, nextProfileId, nextOrderId: nextId })))
+  const snapshot = gzipSync(Buffer.from(JSON.stringify({ version: 1, orders, profiles: [...profilesByGst.values()], trash, emailOutbox, communicationMessages, processedRazorpayEvents: [...processedRazorpayEvents], processedCashfreeEvents: [...processedCashfreeEvents], paymentSettings, emailSettings, adminCredentials, homeSlider, notices, nextEmailSerial, nextProfileId, nextOrderId: nextId })))
   pendingPortalPersistenceWrites += 1
   const task = persistenceTail.catch(() => {}).then(async () => {
     const previousSnapshotId = currentPortalSnapshotId
@@ -2055,6 +2074,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
   if (req.method === 'GET' && url.pathname === '/api/home-slider') return json(res, 200, homeSliderPayload())
+  if (req.method === 'GET' && url.pathname === '/api/notices') return json(res, 200, { notices })
   if (req.method === 'GET' && url.pathname === '/api/order-intake-status') return json(res, 200, paymentSettings.orderIntake)
   const ifscMatch = /^\/api\/ifsc\/([A-Z]{4}0[A-Z0-9]{6})$/i.exec(url.pathname)
   if (req.method === 'GET' && ifscMatch) {
@@ -3039,6 +3059,46 @@ const server = http.createServer(async (req, res) => {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
     if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
     return json(res, 200, { homeSlider: homeSliderPayload() })
+  }
+  if (req.method === 'GET' && url.pathname === '/api/admin/notices') {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
+    return json(res, 200, { notices })
+  }
+  if (req.method === 'POST' && url.pathname === '/api/admin/notices') {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
+    const body = await readJson(req, res)
+    if (!body) return
+    const title = typeof body.title === 'string' ? body.title.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim() : ''
+    const message = typeof body.body === 'string' ? body.body.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim() : ''
+    if (!title || title.length > 120) return json(res, 400, { error: 'Enter a notice heading up to 120 characters.' })
+    if (!message || message.length > 8000) return json(res, 400, { error: 'Enter a notice message up to 8,000 characters.' })
+    if (body.priority !== undefined && !['standard', 'high'].includes(body.priority)) return json(res, 400, { error: 'Choose a valid notice priority.' })
+    if (notices.length >= 200) return json(res, 409, { error: 'The board has reached 200 notices. Delete an old notice before publishing another.' })
+    const notice = { id: randomUUID(), title, body: message, priority: body.priority === 'high' ? 'high' : 'standard', createdAt: new Date().toISOString() }
+    const previousNotices = [...notices]
+    notices.unshift(notice)
+    try { await persistPortalState() }
+    catch {
+      notices.splice(0, notices.length, ...previousNotices)
+      return json(res, 503, { error: 'MongoDB Atlas could not save the notice. Please try again.' })
+    }
+    return json(res, 201, { notice, notices })
+  }
+  const adminNoticeDeleteMatch = /^\/api\/admin\/notices\/([a-f0-9-]{36})$/i.exec(url.pathname)
+  if (req.method === 'DELETE' && adminNoticeDeleteMatch) {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
+    const noticeIndex = notices.findIndex(item => item.id === adminNoticeDeleteMatch[1].toLowerCase())
+    if (noticeIndex < 0) return json(res, 404, { error: 'Notice not found. It may already have been deleted.' })
+    const removedNotice = notices.splice(noticeIndex, 1)[0]
+    try { await persistPortalState() }
+    catch {
+      notices.splice(noticeIndex, 0, removedNotice)
+      return json(res, 503, { error: 'MongoDB Atlas could not delete the notice. Please try again.' })
+    }
+    return json(res, 200, { notice: removedNotice, notices })
   }
   if (req.method === 'PUT' && url.pathname === '/api/admin/home-slider') {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')

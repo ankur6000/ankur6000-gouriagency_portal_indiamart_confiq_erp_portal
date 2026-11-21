@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, LockKeyhole, Mail, Menu, Package, Pencil, Plus, ShieldCheck, Sparkles, X } from './icons.jsx'
 import { createStatementPdf, getStatementPeriodRange } from './statementPdf.js'
 import { createHolidayCalendarPdf } from './holidayPdf.js'
+import { createNoticePdf } from './noticePdf.js'
 import { indiaHolidayStates } from './indiaHolidayStates.js'
 import SalesAnalysis from './SalesAnalysis.jsx'
 import './styles.css'
@@ -307,6 +308,76 @@ const FALLBACK_HOME_SLIDER_SETTINGS = {
     name: ['Healthcare supplies', 'Distribution center', 'Reliable delivery', 'Community pharmacy', 'Careful handling', 'Secure supply chain'][index],
     url: `/home-slider/default-${index + 1}.svg`
   }))
+}
+
+function noticePdfFilename(notice) {
+  const name = String(notice.title || 'gouri-agency-notice').normalize('NFKD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
+  return `${name || 'gouri-agency-notice'}.pdf`
+}
+
+async function downloadNoticePdf(notice) {
+  const blob = await createNoticePdf(notice)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = noticePdfFilename(notice)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+function HomeNoticeBoard() {
+  const [notices, setNotices] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [downloadingId, setDownloadingId] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    const loadNotices = async () => {
+      try {
+        const response = await fetch(`${API}/notices`, { cache: 'no-store', headers: { Accept: 'application/json' } })
+        const data = await readApiJson(response, 'Could not load the notice board.')
+        if (!response.ok) throw new Error(data.error || 'Could not load the notice board.')
+        if (!cancelled) { setNotices(Array.isArray(data.notices) ? data.notices : []); setError('') }
+      } catch (loadError) {
+        if (!cancelled) setError(loadError.message || 'Notices are temporarily unavailable.')
+      } finally { if (!cancelled) setLoading(false) }
+    }
+    loadNotices()
+    const refresh = window.setInterval(loadNotices, 30000)
+    return () => { cancelled = true; window.clearInterval(refresh) }
+  }, [])
+  const download = async notice => {
+    setDownloadingId(notice.id)
+    try { await downloadNoticePdf(notice) }
+    catch (downloadError) { setError(downloadError.message || 'Could not create the notice PDF.') }
+    finally { setDownloadingId('') }
+  }
+  const newestId = notices[0]?.id
+  const duration = `${Math.max(18, notices.length * 9)}s`
+  const renderNotice = (notice, index, repeated = false) => <article className={`home-notice-card${notice.priority === 'high' ? ' is-high-priority' : ''}${notice.id === newestId ? ' is-latest' : ''}`} key={`${repeated ? 'loop-' : ''}${notice.id}-${index}`}>
+    <div className="home-notice-card-copy">
+      <div className="home-notice-card-title-row">
+        {notice.priority === 'high' && <span className="notice-exclamation" aria-label="High priority">!</span>}
+        <h3>{notice.title}</h3>
+        {notice.id === newestId && <span className="notice-new-badge">NEW</span>}
+      </div>
+      <p>{notice.body}</p>
+      <time dateTime={notice.createdAt}>{new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date(notice.createdAt))} IST</time>
+    </div>
+    <button type="button" className="button outline notice-pdf-button" disabled={repeated || downloadingId === notice.id} tabIndex={repeated ? -1 : undefined} onClick={() => download(notice)}>{downloadingId === notice.id ? <LoadingAction loading label="Preparing PDF…"/> : <>Download PDF <ArrowDown size={14}/></>}</button>
+  </article>
+  return <section className="home-notice-board" aria-labelledby="home-notice-title">
+    <div className="home-notice-heading"><div><span className="eyebrow"><span className="live-dot"/> UPDATES FROM GOURI AGENCY</span><h2 id="home-notice-title">Notice board</h2></div><span className="home-notice-count">{notices.length} {notices.length === 1 ? 'notice' : 'notices'}</span></div>
+    {loading ? <div className="home-notice-empty" role="status">Loading current notices…</div> : notices.length ? <div className="home-notice-window" aria-label="Notices scroll upward. Focus or hover to pause.">
+      <div className="home-notice-track" style={{ '--notice-marquee-duration': duration }}>
+        <div className="home-notice-group">{notices.map((notice, index) => renderNotice(notice, index))}</div>
+        <div className="home-notice-group" aria-hidden="true">{notices.map((notice, index) => renderNotice(notice, index, true))}</div>
+      </div>
+    </div> : <div className={`home-notice-empty${error ? ' has-error' : ''}`} role={error ? 'status' : undefined}>{error || 'There are no current notices. Please check back for updates.'}</div>}
+    {error && notices.length > 0 && <p className="home-notice-refresh-error" role="status">{error}</p>}
+  </section>
 }
 
 function HomeImageSlider() {
@@ -1355,6 +1426,86 @@ function AdminAccessSettings({ token }) {
   </section>
 }
 
+function AdminNotices({ token }) {
+  const [notices, setNotices] = useState([])
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [priority, setPriority] = useState('standard')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState('')
+  const [downloadingId, setDownloadingId] = useState('')
+  const [message, setMessage] = useState('')
+  const [isError, setIsError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/admin/notices`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
+      .then(async response => {
+        const data = await readApiJson(response, 'Could not load saved notices.')
+        if (!response.ok) throw new Error(data.error || 'Could not load saved notices.')
+        if (!cancelled) setNotices(Array.isArray(data.notices) ? data.notices : [])
+      })
+      .catch(error => { if (!cancelled) { setMessage(error.message || 'Could not load saved notices.'); setIsError(true) } })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [token])
+
+  const save = async event => {
+    event.preventDefault()
+    setSaving(true); setMessage(''); setIsError(false)
+    try {
+      const response = await fetch(`${API}/admin/notices`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title, body, priority })
+      })
+      const data = await readApiJson(response, 'Could not publish this notice.')
+      if (!response.ok) throw new Error(data.error || 'Could not publish this notice.')
+      setNotices(Array.isArray(data.notices) ? data.notices : [data.notice, ...notices])
+      setTitle(''); setBody(''); setPriority('standard')
+      setMessage('Notice published on the home page.'); notifyActionSuccess('Notice published on the home page.')
+    } catch (error) {
+      setMessage(error.message || 'Could not publish this notice.')
+      setIsError(true)
+    } finally { setSaving(false) }
+  }
+  const remove = async notice => {
+    if (!window.confirm(`Delete the notice “${notice.title}” from the home page?`)) return
+    setDeletingId(notice.id); setMessage(''); setIsError(false)
+    try {
+      const response = await fetch(`${API}/admin/notices/${encodeURIComponent(notice.id)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      const data = await readApiJson(response, 'Could not delete this notice.')
+      if (!response.ok) throw new Error(data.error || 'Could not delete this notice.')
+      setNotices(Array.isArray(data.notices) ? data.notices : notices.filter(item => item.id !== notice.id))
+      setMessage('Notice deleted from the home page.'); notifyActionSuccess('Notice deleted from the home page.')
+    } catch (error) {
+      setMessage(error.message || 'Could not delete this notice.')
+      setIsError(true)
+    } finally { setDeletingId('') }
+  }
+  const download = async notice => {
+    setDownloadingId(notice.id); setMessage(''); setIsError(false)
+    try { await downloadNoticePdf(notice) }
+    catch (error) { setMessage(error.message || 'Could not create the notice PDF.'); setIsError(true) }
+    finally { setDownloadingId('') }
+  }
+  return <section className="dash-panel admin-notices-panel">
+    <div className="panel-heading"><div><span className="eyebrow">HOME PAGE CONTENT</span><h2>Notice board</h2><p>Publish important updates for visitors. The newest notice appears first and scrolls upward on the home page.</p></div><span className="admin-notice-count">{notices.length} saved</span></div>
+    <form className="admin-notice-form" onSubmit={save}>
+      <label>Notice heading<input type="text" maxLength={120} required value={title} disabled={saving} onChange={event => { setTitle(event.target.value); setMessage(''); setIsError(false) }} placeholder="Short, clear announcement"/></label>
+      <label>Notice message<textarea maxLength={8000} rows={5} required value={body} disabled={saving} onChange={event => { setBody(event.target.value); setMessage(''); setIsError(false) }} placeholder="Write the complete notice for customers and visitors."/></label>
+      <label className="admin-notice-priority"><input type="checkbox" checked={priority === 'high'} disabled={saving} onChange={event => setPriority(event.target.checked ? 'high' : 'standard')}/><span><strong>High priority alert</strong><small>Show a blinking alert mark beside this notice.</small></span></label>
+      <div className="admin-notice-form-footer"><small>{body.length}/8000 characters</small><button className="button dark" type="submit" disabled={saving || loading}>{saving ? <LoadingAction loading label="Publishing notice…"/> : <>Publish notice <Plus size={15}/></>}</button></div>
+      {message && <p className={`admin-notice-feedback${isError ? ' is-error' : ''}`} role={isError ? 'alert' : 'status'}>{message}</p>}
+    </form>
+    <div className="admin-notice-list-heading"><h3>Published notices</h3><span>{notices.length}</span></div>
+    {loading ? <p className="admin-notice-empty">Loading saved notices…</p> : notices.length ? <div className="admin-notice-list">{notices.map((notice, index) => <article className={`admin-notice-row${notice.priority === 'high' ? ' is-high-priority' : ''}`} key={notice.id}>
+      <div className="admin-notice-row-copy"><div><strong>{notice.title}</strong>{notice.priority === 'high' && <span className="admin-notice-priority-pill"><i>!</i> High priority</span>}</div><p>{notice.body}</p><time dateTime={notice.createdAt}>{new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date(notice.createdAt))} IST{index === 0 ? ' · Latest' : ''}</time></div>
+      <div className="admin-notice-row-actions"><button type="button" className="button outline" disabled={downloadingId === notice.id || deletingId === notice.id} onClick={() => download(notice)}>{downloadingId === notice.id ? <LoadingAction loading label="Preparing PDF…"/> : <>Download PDF <ArrowDown size={14}/></>}</button><button type="button" className="button danger compact" disabled={deletingId === notice.id || downloadingId === notice.id} onClick={() => remove(notice)}>{deletingId === notice.id ? <LoadingAction loading label="Deleting…"/> : 'Delete notice'}</button></div>
+    </article>)}</div> : <div className="admin-notice-empty">No notices have been published yet.</div>}
+  </section>
+}
+
 function HomeSliderSettings({ token }) {
   const [settings, setSettings] = useState({ enabled: true, intervalSeconds: '10', images: Array(6).fill(null) })
   const [loading, setLoading] = useState(true)
@@ -1770,6 +1921,7 @@ const clientDashboardTabs = [
 ]
 const adminDashboardTabs = [
   { id: 'overview', label: 'Overview' },
+  { id: 'notices', label: 'Notice board' },
   { id: 'profiles', label: 'Clients' },
   { id: 'orders', label: 'Orders' },
   { id: 'sales', label: 'Sales analysis' },
@@ -2664,6 +2816,7 @@ function App() {
       {page === 'holidays' && <main className="holiday-page"><PublicHolidayCalendar/></main>}
       {page === 'pay-online' && <PayOnlinePage/>}
       {page === 'home' && <main className="portal-home">
+        <HomeNoticeBoard/>
         <section className="portal-welcome">
           <div className="eyebrow"><span className="live-dot" /> GOURI AGENCY PORTAL</div>
           <h1>We are here to<br /><em>serve you.</em></h1>
@@ -2906,6 +3059,7 @@ function App() {
         <DashboardTabBar tabs={adminDashboardTabs} active={adminTab} idPrefix="admin-dashboard" label="Admin dashboard sections" onChange={tab => { setAdminTab(tab); setExternalPortal(tab === 'courier' || tab === 'eway' ? tab : null) }}/>
         <div className="dashboard-tab-panel" id="admin-dashboard-panel" role="tabpanel" tabIndex={0} aria-labelledby={`admin-dashboard-${adminTab}-tab`}>
         {adminTab === 'overview' && <section className="admin-overview-tab"><div className="stats-grid profile-stats"><article><span>CUSTOMER PROFILES</span><strong>{profiles.length.toString().padStart(2,'0')}</strong><small>Unique GST numbers</small></article><article><span>AWAITING APPROVAL</span><strong>{orders.filter(o => ['Pending approval', 'In progress'].includes(o.status) && !o.approvedAt).length.toString().padStart(2,'0')}</strong><small>Orders need your review</small></article></div><PaymentSummary orders={orders} title="Overall payment totals" className="admin-payment-overview"/><AdminOverviewCharts orders={orders}/></section>}
+        {adminTab === 'notices' && <AdminNotices token={user.token}/>}
         {adminTab === 'orders' && <section className="dash-panel admin-orders-tab"><div className="panel-heading"><div><span className="eyebrow">ORDER REGISTER</span><h2>All orders</h2><p>Review order status, items, dues, and cancellation eligibility.</p></div><span className="count-pill">{orders.length} orders</span></div>{orderNotice && <div className="admin-notice" role="alert">{orderNotice}</div>}<div className="profile-search-toolbar"><label className="profile-search-field"><span>Search orders</span><input type="search" value={adminOrderSearch} onChange={event => setAdminOrderSearch(event.target.value)} placeholder="Order number, shop, medicine, email, or mobile"/></label><small>{visibleAdminOrders.length} of {orders.length} orders</small></div>{visibleAdminOrders.length ? <div className="admin-global-orders">{visibleAdminOrders.map(order => { const cancelDisabledReason = getOrderCancellationDisabledReason(order, currentTime); const balance = order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)); return <article className="admin-global-order" key={order.id}><div className="admin-global-order-heading"><div><strong>{order.id}</strong><span>{order.shopName} · {order.gstNumber}</span></div><span className={`order-status-badge status-${String(order.status).toLowerCase().replace(/[^a-z]+/g, '-')}`}>{order.status}</span><small>{formatTimestamp(order.date)}</small><button type="button" className="button outline compact-cancel" disabled={updatingOrder === order.id || Boolean(cancelDisabledReason)} title={cancelDisabledReason || undefined} onClick={() => cancelAdminOrder(order.id)}>{updatingOrder === order.id ? <LoadingAction label="Cancelling order…"/> : 'Cancel order'}</button>{cancelDisabledReason && <small className="cancel-order-locked-note">{cancelDisabledReason}</small>}</div><div className="admin-global-order-items">{(order.items || []).map((item, index) => <span key={`${order.id}-item-${index}`}>{item.name} · {item.quantity}</span>)}</div><div className="admin-global-order-balance"><span>Total {formatMoney(order.amountDue)}</span><span>Paid {formatMoney(order.amountPaid)}</span><strong>Outstanding {formatMoney(balance)}</strong></div></article>})}</div> : <div className="profile-search-empty">No orders match that search.</div>}</section>}
         {adminTab === 'sales' && <SalesAnalysis orders={orders} profiles={profiles}/>}
         {adminTab === 'bank' && <BankTransferSettings token={user.token}/>}
