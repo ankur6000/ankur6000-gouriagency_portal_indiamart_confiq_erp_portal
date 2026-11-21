@@ -26,6 +26,16 @@ services:
         sync: false
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
+      - key: CASHFREE_CLIENT_ID
+        sync: false
+      - key: CASHFREE_CLIENT_SECRET
+        sync: false
+      - key: CASHFREE_ENVIRONMENT
+        value: production
+      - key: CASHFREE_API_VERSION
+        value: 2025-01-01
+      - key: PORTAL_PUBLIC_URL
+        value: https://gouri-agency-portal.onrender.com
       - key: GMAIL_USER
         value: donotreplygouriagencymailbox@gmail.com
       - key: GMAIL_SMTP_HOST

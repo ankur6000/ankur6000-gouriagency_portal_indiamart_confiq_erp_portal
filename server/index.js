@@ -66,6 +66,13 @@ const RAZORPAY_KEY_ID = String(process.env.RAZORPAY_KEY_ID || '').trim()
 const RAZORPAY_KEY_SECRET = String(process.env.RAZORPAY_KEY_SECRET || '').trim()
 const RAZORPAY_CONFIGURED = Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET)
 const RAZORPAY_WEBHOOK_SECRET = String(process.env.RAZORPAY_WEBHOOK_SECRET || '').trim()
+const CASHFREE_CLIENT_ID = String(process.env.CASHFREE_CLIENT_ID || '').trim()
+const CASHFREE_CLIENT_SECRET = String(process.env.CASHFREE_CLIENT_SECRET || '').trim()
+const CASHFREE_ENVIRONMENT = String(process.env.CASHFREE_ENVIRONMENT || 'production').trim().toLowerCase() === 'sandbox' ? 'sandbox' : 'production'
+const CASHFREE_API_VERSION = String(process.env.CASHFREE_API_VERSION || '2025-01-01').trim()
+const CASHFREE_BASE_URL = CASHFREE_ENVIRONMENT === 'sandbox' ? 'https://sandbox.cashfree.com/pg' : 'https://api.cashfree.com/pg'
+const CASHFREE_CONFIGURED = Boolean(CASHFREE_CLIENT_ID && CASHFREE_CLIENT_SECRET)
+const PORTAL_PUBLIC_URL = String(process.env.PORTAL_PUBLIC_URL || '').trim().replace(/\/+$/, '')
 const GSTIN_API_KEY = String(process.env.GSTIN_API_KEY || '').trim()
 const GST_VERIFICATION_SIGNING_KEY = randomBytes(32)
 const GMAIL_SMTP_HOST = String(process.env.GMAIL_SMTP_HOST || 'smtp.gmail.com').trim()
@@ -212,6 +219,7 @@ function normalizePortalState(state = {}) {
     emailOutbox: Array.isArray(state.emailOutbox) ? state.emailOutbox : [],
     communicationMessages: Array.isArray(state.communicationMessages) ? state.communicationMessages : [],
     processedRazorpayEvents: Array.isArray(state.processedRazorpayEvents) ? state.processedRazorpayEvents : [],
+    processedCashfreeEvents: Array.isArray(state.processedCashfreeEvents) ? state.processedCashfreeEvents : [],
     paymentSettings: normalizePaymentSettings(state.paymentSettings),
     emailSettings: normalizeEmailSettings(state.emailSettings),
     adminCredentials: normalizeAdminCredentialRecord(state.adminCredentials),
@@ -246,6 +254,7 @@ const trash = savedState.trash
 const emailOutbox = savedState.emailOutbox
 const communicationMessages = savedState.communicationMessages
 const processedRazorpayEvents = new Set(savedState.processedRazorpayEvents)
+const processedCashfreeEvents = new Set(savedState.processedCashfreeEvents)
 let paymentSettings = normalizePaymentSettings(savedState.paymentSettings)
 let emailSettings = normalizeEmailSettings(savedState.emailSettings)
 let adminCredentials = normalizeAdminCredentialRecord(savedState.adminCredentials)
@@ -281,6 +290,8 @@ function installPortalState(state) {
   communicationMessages.splice(0, communicationMessages.length, ...normalized.communicationMessages)
   processedRazorpayEvents.clear()
   for (const eventId of normalized.processedRazorpayEvents) processedRazorpayEvents.add(eventId)
+  processedCashfreeEvents.clear()
+  for (const eventId of normalized.processedCashfreeEvents) processedCashfreeEvents.add(eventId)
   paymentSettings = normalized.paymentSettings
   emailSettings = normalized.emailSettings
   adminCredentials = normalized.adminCredentials
@@ -324,7 +335,7 @@ async function refreshPortalStateFromAtlas({ force = false, required = false } =
   }
 }
 function persistPortalState() {
-  const snapshot = gzipSync(Buffer.from(JSON.stringify({ version: 1, orders, profiles: [...profilesByGst.values()], trash, emailOutbox, communicationMessages, processedRazorpayEvents: [...processedRazorpayEvents], paymentSettings, emailSettings, adminCredentials, homeSlider, nextEmailSerial, nextProfileId, nextOrderId: nextId })))
+  const snapshot = gzipSync(Buffer.from(JSON.stringify({ version: 1, orders, profiles: [...profilesByGst.values()], trash, emailOutbox, communicationMessages, processedRazorpayEvents: [...processedRazorpayEvents], processedCashfreeEvents: [...processedCashfreeEvents], paymentSettings, emailSettings, adminCredentials, homeSlider, nextEmailSerial, nextProfileId, nextOrderId: nextId })))
   pendingPortalPersistenceWrites += 1
   const task = persistenceTail.catch(() => {}).then(async () => {
     const previousSnapshotId = currentPortalSnapshotId
@@ -527,7 +538,7 @@ function createOrderId() {
 }
 function reservedPaymentTotal(order) {
   const now = Date.now()
-  return (order.payments || []).filter(payment => payment.status === 'Pending verification' || payment.status === 'Razorpay payment processing' || (payment.status === 'Awaiting Razorpay payment' && Date.parse(payment.expiresAt) > now)).reduce((sum, payment) => sum + payment.amount, 0)
+  return (order.payments || []).filter(payment => payment.status === 'Pending verification' || ['Razorpay payment processing', 'Cashfree payment processing'].includes(payment.status) || (['Awaiting Razorpay payment', 'Awaiting Cashfree payment'].includes(payment.status) && Date.parse(payment.expiresAt) > now)).reduce((sum, payment) => sum + payment.amount, 0)
 }
 function getOrderPaymentEditLockUntil(order) {
   if (order?.status === 'Cancelled') return ''
@@ -560,7 +571,7 @@ function isOrderPaymentEditLocked(order) {
   const lockUntil = Date.parse(getOrderPaymentEditLockUntil(order))
   return Number.isFinite(lockUntil) && lockUntil > Date.now()
 }
-function hasUnresolvedRazorpayRefund(order) {
+function hasUnresolvedOnlineRefund(order) {
   return (order?.payments || []).some(payment => ['pending', 'failed', 'partially_refunded'].includes(payment.refundStatus))
 }
 async function razorpayRequest(path, { method = 'GET', body } = {}) {
@@ -573,6 +584,113 @@ async function razorpayRequest(path, { method = 'GET', body } = {}) {
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(data.error?.description || 'Razorpay could not process the request.')
   return data
+}
+async function cashfreeRequest(path, { method = 'GET', body } = {}) {
+  if (!CASHFREE_CONFIGURED) throw new Error('Cashfree is not configured on the server.')
+  const response = await fetch(`${CASHFREE_BASE_URL}/${path}`, {
+    method,
+    headers: {
+      'x-api-version': CASHFREE_API_VERSION,
+      'x-client-id': CASHFREE_CLIENT_ID,
+      'x-client-secret': CASHFREE_CLIENT_SECRET,
+      Accept: 'application/json',
+      ...(body ? { 'Content-Type': 'application/json' } : {})
+    },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data.message || data.error?.description || data.code || 'Cashfree could not process the request.')
+    error.status = response.status
+    throw error
+  }
+  return data
+}
+function cashfreeRefundStatus(status) {
+  const normalized = String(status || '').toUpperCase()
+  if (normalized === 'SUCCESS') return 'processed'
+  if (['FAILED', 'CANCELLED', 'REJECTED'].includes(normalized)) return 'failed'
+  return 'pending'
+}
+function updateCashfreeRefundRecord(payment, providerRefund, existing = {}) {
+  const refund = existing
+  const status = cashfreeRefundStatus(providerRefund.refund_status)
+  Object.assign(refund, {
+    id: String(providerRefund.refund_id || refund.id || providerRefund.cf_refund_id || ''),
+    providerRefundId: String(providerRefund.cf_refund_id || refund.providerRefundId || ''),
+    amount: Number(providerRefund.refund_amount ?? refund.amount ?? 0),
+    currency: providerRefund.refund_currency || 'INR',
+    status,
+    reason: refund.reason || providerRefund.refund_note || 'Client order cancellation',
+    arn: providerRefund.refund_arn || refund.arn || '',
+    updatedAt: new Date().toISOString()
+  })
+  payment.refunds ||= []
+  if (!payment.refunds.includes(refund)) payment.refunds.push(refund)
+  return refund
+}
+async function initiateCashfreeRefund(order, payment, { amount = null, reason = 'Client order cancellation' } = {}) {
+  if (payment.provider !== 'Cashfree' || !payment.cashfreeOrderId || !payment.cashfreePaymentId) throw new Error('Only a confirmed Cashfree payment can be refunded automatically.')
+  const lockKey = `${order.id}/${payment.id}`
+  if (razorpayRefundsInProgress.has(lockKey)) return { status: payment.refundStatus || 'pending', duplicate: true }
+  razorpayRefundsInProgress.add(lockKey)
+  try {
+    const providerPayments = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/payments`)
+    const providerPayment = (Array.isArray(providerPayments) ? providerPayments : providerPayments.payments || []).find(item => String(item.cf_payment_id) === String(payment.cashfreePaymentId))
+    if (!providerPayment || providerPayment.payment_status !== 'SUCCESS' || providerPayment.payment_currency !== 'INR' || Math.abs(Number(providerPayment.payment_amount) - Number(payment.amount || 0)) >= 0.005) throw new Error('Cashfree has not confirmed the exact INR payment amount, so it cannot be refunded yet.')
+    const providerRefunds = []
+    for (const local of payment.refunds || []) {
+      if (!local.id) continue
+      const fetched = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/refunds/${encodeURIComponent(local.id)}`).catch(error => {
+        if (error.status === 404) return null
+        throw error
+      })
+      if (fetched) providerRefunds.push(fetched)
+    }
+    for (const providerRefund of providerRefunds) {
+      const local = (payment.refunds || []).find(item => item.id === String(providerRefund.refund_id)) || {}
+      updateCashfreeRefundRecord(payment, providerRefund, local)
+    }
+    updateRefundTotals(order, payment)
+    const pendingAmount = (payment.refunds || []).filter(refund => ['pending', 'initiating'].includes(refund.status)).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
+    const refundable = Math.max(0, Number(payment.amount || 0) - Number(payment.amountRefunded || 0) - pendingAmount)
+    const refundAmount = amount === null ? refundable : Math.min(refundable, Math.max(0, Number(amount)))
+    if (refundAmount < 0.01) return { status: payment.refundStatus || 'processed', duplicate: true }
+    const refund = { id: `GA${String(order.id).replace(/[^A-Za-z0-9]/g, '')}${randomUUID().replace(/-/g, '').slice(0, 10)}`.slice(0, 40) }
+    Object.assign(refund, { amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason: String(reason).slice(0, 100), createdAt: refund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
+    payment.refunds ||= []
+    if (!payment.refunds.includes(refund)) payment.refunds.push(refund)
+    updateRefundTotals(order, payment)
+    persistPortalState()
+    let providerRefund
+    try {
+      providerRefund = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/refunds/${encodeURIComponent(refund.id)}`).catch(error => {
+        if (error.status === 404) return null
+        throw error
+      })
+      if (!providerRefund) providerRefund = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/refunds`, {
+        method: 'POST',
+        body: { refund_amount: refund.amount, refund_id: refund.id, refund_note: String(reason).slice(0, 100) }
+      })
+    } catch (error) {
+      refund.status = 'failed'
+      refund.failureReason = String(error.message || 'Cashfree could not start the refund.').slice(0, 300)
+      updateRefundTotals(order, payment)
+      persistPortalState()
+      throw error
+    }
+    updateCashfreeRefundRecord(payment, providerRefund, refund)
+    updateRefundTotals(order, payment)
+    if (payment.refundStatus !== 'failed') delete payment.refundFailureReason
+    persistPortalState()
+    return { status: payment.refundStatus, refund }
+  } finally {
+    razorpayRefundsInProgress.delete(lockKey)
+  }
+}
+async function initiateOnlineRefund(order, payment, options = {}) {
+  if (payment.provider === 'Cashfree') return initiateCashfreeRefund(order, payment, options)
+  return initiateRazorpayRefund(order, payment, options)
 }
 function recomputeOrderPaidAmount(order) {
   const confirmed = (order.payments || []).filter(payment => ['Paid', 'Verified'].includes(payment.status))
@@ -895,7 +1013,7 @@ function queuePaymentConfirmationEmail(profile, order, payment, ledger, receipt)
       title: 'Payment confirmation', greeting: customerName,
       introduction: `A payment for order ${order.id} has been recorded in your Gouri Agency account.`,
       sections: [
-        { title: 'Payment details', fields: [['Order number', order.id], ['Amount received', formatINR(payment.amount)], ['Payment method', payment.provider || 'Payment'], ['Transaction reference', payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || '—'], ['Payment date and time', emailTimestamp(payment.paidAt || payment.reviewedAt)] ] },
+        { title: 'Payment details', fields: [['Order number', order.id], ['Amount received', formatINR(payment.amount)], ['Payment method', payment.provider || 'Payment'], ['Transaction reference', payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId || '—'], ['Payment date and time', emailTimestamp(payment.paidAt || payment.reviewedAt)] ] },
         { title: 'Updated order balance', fields: [['Total order due', formatINR(order.amountDue)], ['Total paid', formatINR(order.amountPaid)], ['Outstanding balance', formatINR(balance)], ['Last payment date and time', emailTimestamp(order.lastPaymentAt || payment.paidAt)] ] }
       ],
       attachmentNote: 'Attached are your payment receipt and updated order/customer profile PDF. These documents are also available from your client portal.'
@@ -975,6 +1093,9 @@ function orderCancellationWindow(order, now = Date.now()) {
   return { eligible: true, reason: '' }
 }
 const orderCancellationsInProgress = new Set()
+const onlinePaymentProviders = new Set(['Razorpay', 'Cashfree'])
+function isGatewayPayment(payment) { return onlinePaymentProviders.has(payment?.provider) }
+function gatewayDisplayName(payment) { return payment?.provider === 'Cashfree' ? 'Cashfree' : 'Razorpay' }
 async function cancelOrderAndRequestRefund(order, cancelledBy) {
   if (orderCancellationsInProgress.has(order.id)) return { statusCode: 409, error: 'Cancellation is already being processed for this order. Refresh the order shortly.' }
   orderCancellationsInProgress.add(order.id)
@@ -988,17 +1109,20 @@ async function performOrderCancellation(order, cancelledBy) {
     return { statusCode: 409, error: 'A bank transfer is awaiting agency confirmation. Contact the agency to reconcile it before cancelling this order.' }
   }
   if ((order.payments || []).some(payment => payment.status === 'Verified')) {
-    return { statusCode: 409, error: 'A confirmed bank transfer cannot be refunded automatically through Razorpay. Contact the agency to reconcile this order.' }
+    return { statusCode: 409, error: 'A confirmed bank transfer cannot be refunded automatically through an online gateway. Contact the agency to reconcile this order.' }
   }
-  const recordedOnlinePaid = (order.payments || []).filter(payment => payment.provider === 'Razorpay' && payment.status === 'Paid').reduce((sum, payment) => sum + Math.max(0, Number(payment.amount || 0) - Number(payment.amountRefunded || 0)), 0)
+  const recordedOnlinePaid = (order.payments || []).filter(payment => isGatewayPayment(payment) && payment.status === 'Paid').reduce((sum, payment) => sum + Math.max(0, Number(payment.amount || 0) - Number(payment.amountRefunded || 0)), 0)
   if (Number(order.amountPaid || 0) - recordedOnlinePaid > 0.005) {
-    return { statusCode: 409, error: 'This order has a payment balance that cannot be traced to a Razorpay transaction. Contact the agency to review it before cancelling.' }
+    return { statusCode: 409, error: 'This order has a payment balance that cannot be traced to a verified online transaction. Contact the agency to review it before cancelling.' }
   }
   try {
-    for (const payment of (order.payments || []).filter(row => row.provider === 'Razorpay' && ['Awaiting Razorpay payment', 'Razorpay payment processing', 'Failed', 'Cancelled'].includes(row.status) && row.razorpayOrderId)) {
-      if (payment.status === 'Awaiting Razorpay payment') {
-        const collection = await razorpayRequest(`orders/${encodeURIComponent(payment.razorpayOrderId)}/payments?count=100`)
-        if (!(collection.items || []).length) {
+    for (const payment of (order.payments || []).filter(row => isGatewayPayment(row) && ['Awaiting Razorpay payment', 'Razorpay payment processing', 'Awaiting Cashfree payment', 'Cashfree payment processing', 'Failed', 'Cancelled'].includes(row.status) && (row.razorpayOrderId || row.cashfreeOrderId))) {
+      if (['Awaiting Razorpay payment', 'Awaiting Cashfree payment'].includes(payment.status)) {
+        const collection = payment.provider === 'Cashfree'
+          ? await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/payments`)
+          : await razorpayRequest(`orders/${encodeURIComponent(payment.razorpayOrderId)}/payments?count=100`)
+        const attempts = Array.isArray(collection) ? collection : collection.items || collection.payments || []
+        if (!attempts.length) {
           payment.status = 'Cancelled'
           payment.cancelledAt = new Date().toISOString()
           payment.reconcileUntil = new Date(Date.now() + PAYMENT_RECONCILIATION_WINDOW_MS).toISOString()
@@ -1007,13 +1131,13 @@ async function performOrderCancellation(order, cancelledBy) {
           continue
         }
       }
-      await reconcileRazorpayPayment(order, payment)
+      await reconcileOnlinePayment(order, payment)
     }
   } catch (error) {
-    return { statusCode: 502, error: `The latest Razorpay payment is still being checked. Please retry cancellation shortly. ${error.message || ''}`.trim() }
+    return { statusCode: 502, error: `The latest online payment is still being checked. Please retry cancellation shortly. ${error.message || ''}`.trim() }
   }
-  if ((order.payments || []).some(payment => ['Awaiting Razorpay payment', 'Razorpay payment processing'].includes(payment.status))) {
-    return { statusCode: 409, error: 'A Razorpay payment is still being confirmed. Your order has not been cancelled; wait a moment and try again.' }
+  if ((order.payments || []).some(payment => ['Awaiting Razorpay payment', 'Razorpay payment processing', 'Awaiting Cashfree payment', 'Cashfree payment processing'].includes(payment.status))) {
+    return { statusCode: 409, error: 'An online payment is still being confirmed. Your order has not been cancelled; wait a moment and try again.' }
   }
   // Recheck after network calls so an approval or expired 24-hour window cannot race a refund request.
   const finalEligibility = orderCancellationWindow(order)
@@ -1024,19 +1148,20 @@ async function performOrderCancellation(order, cancelledBy) {
   order.updatedAt = order.cancelledAt
   persistPortalState()
   const refundErrors = []
-  for (const payment of (order.payments || []).filter(row => row.provider === 'Razorpay' && row.status === 'Paid' && row.razorpayPaymentId)) {
-    try { await initiateRazorpayRefund(order, payment, { reason: `${cancelledBy} cancelled order ${order.id}`, suffix: 'cancel' }) }
-    catch (error) { payment.refundStatus = 'failed'; payment.refundFailureReason = String(error.message || 'Razorpay refund could not be started.').slice(0, 300); refundErrors.push(payment.refundFailureReason) }
+  for (const payment of (order.payments || []).filter(row => isGatewayPayment(row) && row.status === 'Paid' && (row.razorpayPaymentId || row.cashfreePaymentId))) {
+    try { await initiateOnlineRefund(order, payment, { reason: `${cancelledBy} cancelled order ${order.id}`, suffix: 'cancel' }) }
+    catch (error) { payment.refundStatus = 'failed'; payment.refundFailureReason = String(error.message || `${gatewayDisplayName(payment)} refund could not be started.`).slice(0, 300); refundErrors.push(payment.refundFailureReason) }
   }
   recomputeOrderPaidAmount(order)
-  const paidOnline = (order.payments || []).some(payment => payment.status === 'Paid' && payment.provider === 'Razorpay')
+  const paidOnline = (order.payments || []).some(payment => payment.status === 'Paid' && isGatewayPayment(payment))
+  const refundProviderNames = [...new Set((order.payments || []).filter(payment => payment.refundStatus && isGatewayPayment(payment)).map(gatewayDisplayName))].join(' and ')
   const refundStates = (order.payments || []).filter(payment => payment.refundStatus).map(payment => payment.refundStatus)
-  const refundSummary = refundStates.includes('failed') ? 'Refund failed — the agency must review the payment.' : refundStates.includes('pending') ? 'Refund initiated — Razorpay is processing it.' : refundStates.includes('processed') || refundStates.includes('partially_refunded') ? 'Refund processed by Razorpay.' : paidOnline ? 'Refund requested.' : 'No successful payment was recorded; no refund was required.'
+  const refundSummary = refundStates.includes('failed') ? 'Refund failed — the agency must review the payment.' : refundStates.includes('pending') ? `Refund initiated — ${refundProviderNames || 'payment provider'} is processing it.` : refundStates.includes('processed') || refundStates.includes('partially_refunded') ? `Refund processed by ${refundProviderNames || 'the payment provider'}.` : paidOnline ? 'Refund requested.' : 'No successful payment was recorded; no refund was required.'
   const fields = [['Order status', `Cancelled by ${cancelledBy.toLowerCase()}`], ['Cancellation time', emailTimestamp(order.cancelledAt)], ['Payment and refund status', refundSummary], ['Outstanding balance', formatINR(0)]]
   for (const payment of (order.payments || []).filter(item => item.refundStatus)) {
     const requestedRefund = (payment.refunds || []).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
     fields.push([`Refund for ${payment.id}`, `${payment.refundStatus}; ${formatINR(requestedRefund)} requested, ${formatINR(payment.amountRefunded || 0)} returned`])
-    for (const refund of payment.refunds || []) fields.push(['Razorpay refund reference', refund.id || refund.receipt || 'Submitted'])
+    for (const refund of payment.refunds || []) fields.push([`${gatewayDisplayName(payment)} refund reference`, refund.id || refund.receipt || 'Submitted'])
   }
   if (refundErrors.length) fields.push(['Refund review', refundErrors.join(' ')])
   const emailJob = await emailPaymentStateChange(order, 'Order cancelled and payment reviewed', fields, `Your cancellation for order ${order.id} has been recorded. The payment and refund status is listed below.`)
@@ -1044,9 +1169,10 @@ async function performOrderCancellation(order, cancelledBy) {
 }
 async function markRazorpayRefundFailed(order, payment, error, { notify = false } = {}) {
   payment.refundStatus = 'failed'
-  payment.refundFailureReason = String(error?.message || error || 'Razorpay could not process this refund.').slice(0, 300)
+  const provider = gatewayDisplayName(payment)
+  payment.refundFailureReason = String(error?.message || error || `${provider} could not process this refund.`).slice(0, 300)
   persistPortalState()
-  if (notify) await emailPaymentStateChange(order, 'Refund needs agency review', [['Payment reference', payment.razorpayPaymentId], ['Refund status', 'Failed'], ['Reason', payment.refundFailureReason]], `Razorpay could not complete the refund for order ${order.id}. The agency has been notified to review the payment.`)
+  if (notify) await emailPaymentStateChange(order, 'Refund needs agency review', [['Payment provider', provider], ['Payment reference', payment.razorpayPaymentId || payment.cashfreePaymentId], ['Refund status', 'Failed'], ['Reason', payment.refundFailureReason]], `${provider} could not complete the refund for order ${order.id}. The agency has been notified to review the payment.`)
 }
 function updateRefundTotals(order, payment) {
   payment.refunds ||= []
@@ -1240,6 +1366,130 @@ async function reconcilePendingRazorpayRefunds() {
     }
   }
 }
+async function markCashfreePaymentFailed(order, payment, providerPayment, reason = '') {
+  const changed = payment.status !== 'Failed'
+  payment.status = 'Failed'
+  payment.cashfreePaymentId = String(providerPayment?.cf_payment_id || payment.cashfreePaymentId || '')
+  payment.failureReason = String(reason || providerPayment?.payment_message || 'Cashfree did not confirm this payment.').slice(0, 300)
+  payment.failedAt ||= new Date().toISOString()
+  payment.reconcileUntil ||= new Date(Date.now() + PAYMENT_RECONCILIATION_WINDOW_MS).toISOString()
+  payment.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString()
+  if (changed) await emailPaymentStateChange(order, 'Payment failed', [['Payment provider', 'Cashfree'], ['Payment status', 'Failed'], ['Reason', payment.failureReason], ['Order balance', formatINR(Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)))]], `Cashfree did not confirm payment for order ${order.id}. The unpaid balance remains due; you can retry from your client portal.`)
+  persistPortalState()
+}
+async function reconcileCashfreePayment(order, payment) {
+  if (!CASHFREE_CONFIGURED || !payment?.cashfreeOrderId) return { status: payment?.status || 'unknown', payment }
+  const response = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/payments`)
+  const providerPayments = Array.isArray(response) ? response : Array.isArray(response.payments) ? response.payments : []
+  const validPayments = providerPayments.filter(item => Math.abs(Number(item.payment_amount) - Number(payment.amount || 0)) < 0.005 && item.payment_currency === 'INR')
+  const successful = validPayments.filter(item => String(item.payment_status || '').toUpperCase() === 'SUCCESS').sort((a, b) => Date.parse(b.payment_time || '') - Date.parse(a.payment_time || ''))[0]
+  const mismatchedSuccess = !successful && providerPayments.find(item => String(item.payment_status || '').toUpperCase() === 'SUCCESS')
+  if (mismatchedSuccess) {
+    payment.status = 'Cashfree payment processing'
+    payment.reconciliationError = 'Cashfree reported a successful payment whose amount or currency does not match this checkout. Agency review is required.'
+    payment.reconcileUntil ||= new Date(Date.now() + PAYMENT_RECONCILIATION_WINDOW_MS).toISOString()
+    payment.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString()
+    persistPortalState()
+    return { status: 'mismatch', payment }
+  }
+  if (successful) {
+    const paymentId = String(successful.cf_payment_id || '')
+    if (!paymentId) return { status: 'mismatch', payment }
+    const wasPaid = payment.status === 'Paid' && payment.cashfreePaymentId === paymentId
+    let refundSummary = ''
+    if (!wasPaid) {
+      await finalizeConfirmedPayment(order, payment, { status: 'Paid', reference: successful.bank_reference || paymentId, cashfreePaymentId: paymentId })
+      payment.reconcileUntil = ''
+      payment.nextReconcileAt = ''
+      if (order.status === 'Cancelled') {
+        try { await initiateCashfreeRefund(order, payment, { reason: 'Late payment after client cancellation' }); refundSummary = payment.refundStatus === 'pending' ? 'Refund processing' : 'Refund submitted' }
+        catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }); refundSummary = 'Refund review required' }
+      } else {
+        const excess = Math.max(0, Number(order.amountPaid || 0) - Number(order.amountDue || 0))
+        if (excess > 0.005) {
+          try { await initiateCashfreeRefund(order, payment, { amount: excess, reason: 'Payment reconciliation surplus' }) }
+          catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }) }
+        }
+      }
+    } else if (order.status === 'Cancelled' && payment.refundStatus !== 'processed' && payment.refundStatus !== 'pending') {
+      try { await initiateCashfreeRefund(order, payment, { reason: 'Late payment after client cancellation' }) }
+      catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }) }
+    }
+    if (order.status === 'Cancelled' && !refundSummary) refundSummary = payment.refundStatus === 'pending' ? 'Refund processing' : payment.refundStatus === 'processed' ? 'Refund processed' : payment.refundStatus === 'failed' ? 'Refund review required' : 'Refund submitted'
+    return { status: 'Paid', payment, refundSummary }
+  }
+  const hasPaymentAttempt = providerPayments.length > 0
+  const unresolved = validPayments.some(item => ['PENDING', 'NOT_ATTEMPTED'].includes(String(item.payment_status || '').toUpperCase()))
+  const failed = validPayments.filter(item => ['FAILED', 'USER_DROPPED', 'CANCELLED'].includes(String(item.payment_status || '').toUpperCase())).sort((a, b) => Date.parse(b.payment_time || '') - Date.parse(a.payment_time || ''))[0]
+  if (failed && !unresolved) {
+    await markCashfreePaymentFailed(order, payment, failed, failed.payment_message || '')
+    return { status: 'Failed', payment }
+  }
+  if (!hasPaymentAttempt && Date.parse(payment.expiresAt || '') <= Date.now() && payment.status !== 'Cancelled') {
+    await markCashfreePaymentFailed(order, payment, null, 'The checkout expired before Cashfree recorded a payment.')
+    return { status: 'Failed', payment }
+  }
+  if (!hasPaymentAttempt && payment.status === 'Cancelled') {
+    payment.reconcileUntil ||= new Date(Date.now() + PAYMENT_RECONCILIATION_WINDOW_MS).toISOString()
+    payment.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString()
+    persistPortalState()
+    return { status: 'Cancelled', payment }
+  }
+  if (unresolved || (hasPaymentAttempt && !failed && !successful)) {
+    payment.status = 'Cashfree payment processing'
+    payment.reconcileUntil ||= new Date(Date.now() + PAYMENT_RECONCILIATION_WINDOW_MS).toISOString()
+    payment.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString()
+    persistPortalState()
+    return { status: payment.status, payment }
+  }
+  return { status: payment.status || 'Awaiting Cashfree payment', payment }
+}
+async function reconcilePendingCashfreePayments() {
+  if (!CASHFREE_CONFIGURED) return
+  const now = Date.now()
+  const candidates = orders.flatMap(order => (order.payments || []).filter(payment =>
+    payment.provider === 'Cashfree' && payment.cashfreeOrderId && (
+      (payment.status === 'Awaiting Cashfree payment' && Date.parse(payment.expiresAt || '') <= now) ||
+      (['Failed', 'Cancelled', 'Cashfree payment processing'].includes(payment.status) && Date.parse(payment.reconcileUntil || '') > now && Date.parse(payment.nextReconcileAt || '') <= now)
+    )
+  ).map(payment => ({ order, payment }))).slice(0, 10)
+  for (const { order, payment } of candidates) {
+    try { await reconcileCashfreePayment(order, payment) }
+    catch (error) { payment.reconcileError = String(error.message || 'Cashfree reconciliation is unavailable.').slice(0, 300); payment.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString(); persistPortalState() }
+  }
+}
+async function reconcilePendingCashfreeRefunds() {
+  if (!CASHFREE_CONFIGURED) return
+  const candidates = orders.flatMap(order => (order.payments || []).filter(payment =>
+    payment.provider === 'Cashfree' && payment.cashfreeOrderId && (payment.refunds || []).some(refund => ['pending', 'initiating'].includes(refund.status) && (!refund.nextReconcileAt || Date.parse(refund.nextReconcileAt) <= Date.now()))
+  ).map(payment => ({ order, payment }))).slice(0, 10)
+  for (const { order, payment } of candidates) {
+    try {
+      let changed = false
+      const previousStatus = payment.refundStatus
+      for (const refund of payment.refunds || []) {
+        if (!refund.id || !['pending', 'initiating'].includes(refund.status)) continue
+        const providerRefund = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/refunds/${encodeURIComponent(refund.id)}`)
+        const previous = refund.status
+        updateCashfreeRefundRecord(payment, providerRefund, refund)
+        if (previous !== refund.status) changed = true
+        refund.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString()
+      }
+      updateRefundTotals(order, payment)
+      if (changed || previousStatus !== payment.refundStatus) {
+        persistPortalState()
+        await emailPaymentStateChange(order, 'Refund status updated', [['Payment provider', 'Cashfree'], ['Payment reference', payment.cashfreePaymentId], ['Refund status', payment.refundStatus], ['Refunded amount', formatINR(payment.amountRefunded)], ['Order balance', formatINR(order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)))]], `Cashfree updated the refund status for order ${order.id}. The current refund details are listed below.`)
+      } else persistPortalState()
+    } catch (error) {
+      payment.refundReconcileError = String(error.message || 'Cashfree refund status could not be refreshed.').slice(0, 300)
+      for (const refund of payment.refunds || []) if (['pending', 'initiating'].includes(refund.status)) refund.nextReconcileAt = new Date(Date.now() + 5 * 60_000).toISOString()
+      persistPortalState()
+    }
+  }
+}
+async function reconcileOnlinePayment(order, payment) {
+  return payment.provider === 'Cashfree' ? reconcileCashfreePayment(order, payment) : reconcileRazorpayPayment(order, payment)
+}
 function validStatementDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T00:00:00.000Z`)
@@ -1416,7 +1666,7 @@ function migrateQueuedEmailSerials() {
 }
 migrateQueuedEmailSerials()
 function formatINR(value) { return `INR ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
-async function finalizeConfirmedPayment(order, payment, { status, reference, razorpayPaymentId = '' }) {
+async function finalizeConfirmedPayment(order, payment, { status, reference, razorpayPaymentId = '', cashfreePaymentId = '' }) {
   const previouslyPaid = Number(order.amountPaid || 0)
   if (!Number.isFinite(Number(order.paidBalanceAdjustment))) {
     const previouslyRecordedPayments = (order.payments || []).filter(row => ['Paid', 'Verified'].includes(row.status))
@@ -1426,6 +1676,7 @@ async function finalizeConfirmedPayment(order, payment, { status, reference, raz
   payment.status = status
   payment.reference = reference || payment.reference || ''
   if (razorpayPaymentId) payment.razorpayPaymentId = razorpayPaymentId
+  if (cashfreePaymentId) payment.cashfreePaymentId = cashfreePaymentId
   payment.paidAt ||= new Date().toISOString()
   payment.dueAtPayment = Number(order.amountDue || 0)
   recomputeOrderPaidAmount(order)
@@ -1826,6 +2077,44 @@ const server = http.createServer(async (req, res) => {
     persistPortalState()
     return json(res, 200, { ok: true })
   }
+  if (req.method === 'POST' && url.pathname === '/api/webhooks/cashfree') {
+    if (!CASHFREE_CONFIGURED) return json(res, 503, { error: 'Cashfree API credentials are not configured on the server.' })
+    const rawBody = await readRawBody(req)
+    if (!rawBody) return json(res, 413, { error: 'Webhook payload is too large.' })
+    const timestamp = String(req.headers['x-webhook-timestamp'] || '')
+    const signature = String(req.headers['x-webhook-signature'] || '')
+    const provided = /^[A-Za-z0-9+/]+={0,2}$/.test(signature) ? Buffer.from(signature, 'base64') : Buffer.alloc(0)
+    const expected = createHmac('sha256', CASHFREE_CLIENT_SECRET).update(timestamp + rawBody.toString('utf8')).digest()
+    if (!timestamp || provided.length !== expected.length || !timingSafeEqual(provided, expected)) return json(res, 401, { error: 'Cashfree webhook signature is invalid.' })
+    let event
+    try { event = JSON.parse(rawBody.toString('utf8')) } catch { return json(res, 400, { error: 'Webhook payload is invalid JSON.' }) }
+    const eventKey = String(req.headers['x-idempotency-key'] || req.headers['x-idempotency-header'] || `body:${createHmac('sha256', CASHFREE_CLIENT_SECRET).update(rawBody).digest('hex')}`)
+    if (processedCashfreeEvents.has(eventKey)) return json(res, 200, { ok: true, duplicate: true })
+    const eventType = String(event.type || '').toUpperCase()
+    const webhookPayment = event.data?.payment
+    const webhookRefund = event.data?.refund || event.data?.auto_refund
+    const cashfreeOrderId = String(event.data?.order?.order_id || webhookRefund?.order_id || '')
+    const order = orders.find(item => (item.payments || []).some(payment => payment.provider === 'Cashfree' && (payment.cashfreeOrderId === cashfreeOrderId || (webhookPayment?.cf_payment_id && payment.cashfreePaymentId === String(webhookPayment.cf_payment_id)))))
+    if (order && ['PAYMENT_SUCCESS_WEBHOOK', 'PAYMENT_FAILED_WEBHOOK', 'PAYMENT_USER_DROPPED_WEBHOOK'].includes(eventType)) {
+      const payment = (order.payments || []).find(item => item.provider === 'Cashfree' && item.cashfreeOrderId === cashfreeOrderId)
+      if (payment) await reconcileCashfreePayment(order, payment)
+    } else if (order && ['REFUND_STATUS_WEBHOOK', 'AUTO_REFUND_STATUS_WEBHOOK'].includes(eventType) && webhookRefund) {
+      const payment = (order.payments || []).find(item => item.provider === 'Cashfree' && (item.cashfreeOrderId === cashfreeOrderId || String(item.cashfreePaymentId) === String(webhookRefund.cf_payment_id || '')))
+      if (payment) {
+        payment.refunds ||= []
+        const refundKey = String(webhookRefund.refund_id || webhookRefund.cf_refund_id || '')
+        const refund = payment.refunds.find(item => item.id === refundKey || item.providerRefundId === String(webhookRefund.cf_refund_id || '')) || {}
+        const previousStatus = payment.refundStatus
+        updateCashfreeRefundRecord(payment, webhookRefund, refund)
+        updateRefundTotals(order, payment)
+        persistPortalState()
+        if (previousStatus !== payment.refundStatus) await emailPaymentStateChange(order, 'Refund status updated', [['Payment provider', 'Cashfree'], ['Payment reference', payment.cashfreePaymentId || webhookRefund.cf_payment_id || ''], ['Cashfree refund ID', refund.id], ['Refund status', payment.refundStatus], ['Refunded amount', formatINR(payment.amountRefunded)], ['Order balance', formatINR(order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)))]], `Cashfree updated the refund status for order ${order.id}. The current refund details are listed below.`)
+      }
+    }
+    processedCashfreeEvents.add(eventKey)
+    persistPortalState()
+    return json(res, 200, { ok: true, ignored: !order })
+  }
   if (req.method === 'POST' && url.pathname === '/api/login') {
     const body = await readJson(req, res)
     if (!body) return
@@ -1960,7 +2249,7 @@ const server = http.createServer(async (req, res) => {
     const clientOrders = profileId ? orders.filter(order => order.profileId === profileId) : []
     const profile = profileId ? [...profilesByGst.values()].find(item => item.id === profileId) || null : null
     const promoCode = isPromoCodeLive(paymentSettings.promoCode) ? paymentSettings.promoCode : null
-    return json(res, 200, { orders: clientOrders.map(clientOrderForDashboard), profile: dashboardProfile(profile), razorpayKeyId: RAZORPAY_CONFIGURED ? RAZORPAY_KEY_ID : '', bankTransferDetails: paymentSettings.bankTransfer, promoCode })
+    return json(res, 200, { orders: clientOrders.map(clientOrderForDashboard), profile: dashboardProfile(profile), razorpayKeyId: RAZORPAY_CONFIGURED ? RAZORPAY_KEY_ID : '', cashfreeEnabled: CASHFREE_CONFIGURED, cashfreeEnvironment: CASHFREE_ENVIRONMENT, bankTransferDetails: paymentSettings.bankTransfer, promoCode })
   }
   if (req.method === 'POST' && url.pathname.startsWith('/api/client/orders/') && url.pathname.endsWith('/promo')) {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
@@ -2043,6 +2332,87 @@ const server = http.createServer(async (req, res) => {
     const payment = (order.payments || []).find(item => item.id === decodeURIComponent(receiptPath[2]))
     if (!payment) return json(res, 404, { error: 'Payment record not found.' })
     return sendPaymentReceipt(res, order, payment)
+  }
+  if (req.method === 'POST' && url.pathname.startsWith('/api/client/orders/') && url.pathname.endsWith('/cashfree-checkout')) {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !clientSessions.has(token)) return json(res, 401, { error: 'Client sign-in required.' })
+    if (!CASHFREE_CONFIGURED) return json(res, 503, { error: 'Cashfree checkout is not configured. Add CASHFREE_CLIENT_ID and CASHFREE_CLIENT_SECRET to the server environment.' })
+    const profileId = clientSessions.get(token)
+    const orderId = decodeURIComponent(url.pathname.slice('/api/client/orders/'.length, -'/cashfree-checkout'.length))
+    const order = orders.find(item => item.id === orderId && item.profileId === profileId)
+    if (!order) return json(res, 404, { error: 'Order not found in this customer profile.' })
+    if (order.status === 'Cancelled') return json(res, 409, { error: 'This order has been cancelled and cannot accept new payments.' })
+    const body = await readJson(req, res)
+    if (!body) return
+    const amount = Number(body.amount)
+    const availableDue = Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - reservedPaymentTotal(order))
+    if (!Number.isFinite(amount) || Math.round(amount * 100) < 100 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter a Cashfree payment amount of at least ₹1 and no more than the unpaid balance.' })
+    const profile = [...profilesByGst.values()].find(item => item.id === profileId)
+    const customerPhone = String(profile?.mobile || order.mobile || '').replace(/\D/g, '').slice(-10)
+    if (!/^\d{10}$/.test(customerPhone)) return json(res, 400, { error: 'A valid 10-digit registered mobile number is required for Cashfree checkout. Update the profile and retry.' })
+    const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim()
+    const requestProtocol = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim()
+    const publicUrl = PORTAL_PUBLIC_URL || `${requestProtocol}://${requestHost}`
+    if (!/^https?:\/\//i.test(publicUrl)) return json(res, 500, { error: 'Set PORTAL_PUBLIC_URL to the public HTTPS website address.' })
+    const cashfreeOrderId = `cf_${order.id}_${randomUUID().replace(/-/g, '').slice(0, 10)}`
+    const returnUrl = new URL('/', publicUrl)
+    returnUrl.searchParams.set('cashfree_order_id', cashfreeOrderId)
+    try {
+      const cashfreeOrder = await cashfreeRequest('orders', { method: 'POST', body: {
+        order_id: cashfreeOrderId,
+        order_amount: Math.round(amount * 100) / 100,
+        order_currency: 'INR',
+        customer_details: {
+          customer_id: String(profile?.id || order.profileId || 'client').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 50),
+          customer_name: String(profile?.ownerName || order.ownerName || profile?.shopName || order.shopName || 'Gouri Agency Client').slice(0, 100),
+          customer_email: String(profile?.email || order.email || '').slice(0, 100),
+          customer_phone: customerPhone
+        },
+        order_meta: {
+          return_url: returnUrl.toString(),
+          notify_url: new URL('/api/webhooks/cashfree', publicUrl).toString()
+        },
+        order_note: `Payment for Gouri Agency order ${order.id}`.slice(0, 200),
+        order_tags: { gouri_order_id: order.id }
+      } })
+      if (!cashfreeOrder.payment_session_id || !cashfreeOrder.order_id) throw new Error('Cashfree did not return a valid payment session.')
+      const payment = {
+        id: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`,
+        amount: Math.round(amount * 100) / 100,
+        reference: 'Cashfree checkout started',
+        provider: 'Cashfree',
+        status: 'Awaiting Cashfree payment',
+        cashfreeOrderId: String(cashfreeOrder.order_id),
+        cashfreePaymentSessionId: String(cashfreeOrder.payment_session_id),
+        submittedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      }
+      order.payments ||= []
+      order.payments.unshift(payment)
+      persistPortalState()
+      return json(res, 201, { order: clientOrderForDashboard(order), paymentSessionId: payment.cashfreePaymentSessionId, cashfreeOrderId: payment.cashfreeOrderId, environment: CASHFREE_ENVIRONMENT })
+    } catch (error) {
+      return json(res, 502, { error: error.message || 'Could not start Cashfree checkout.' })
+    }
+  }
+  if (req.method === 'POST' && url.pathname.startsWith('/api/client/orders/') && url.pathname.endsWith('/cashfree-reconcile')) {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !clientSessions.has(token)) return json(res, 401, { error: 'Client sign-in required.' })
+    if (!CASHFREE_CONFIGURED) return json(res, 503, { error: 'Cashfree payment reconciliation is not configured.' })
+    const profileId = clientSessions.get(token)
+    const orderId = decodeURIComponent(url.pathname.slice('/api/client/orders/'.length, -'/cashfree-reconcile'.length))
+    const order = orders.find(item => item.id === orderId && item.profileId === profileId)
+    if (!order) return json(res, 404, { error: 'Order not found in this customer profile.' })
+    const body = await readJson(req, res)
+    if (!body) return
+    const payment = (order.payments || []).find(item => item.provider === 'Cashfree' && item.cashfreeOrderId === String(body.cashfreeOrderId || ''))
+    if (!payment) return json(res, 404, { error: 'Cashfree checkout record not found.' })
+    try {
+      const result = payment.status === 'Paid' ? { status: 'Paid', payment } : await reconcileCashfreePayment(order, payment)
+      return json(res, 200, { order: clientOrderForDashboard(order), payment, reconciliationStatus: result.status, refundSummary: result.refundSummary || '', emailStatus: payment.emailStatus || null })
+    } catch (error) {
+      return json(res, 502, { error: error.message || 'Could not reconcile this Cashfree payment.' })
+    }
   }
   if (req.method === 'POST' && url.pathname.startsWith('/api/client/orders/') && url.pathname.endsWith('/checkout')) {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
@@ -2218,7 +2588,7 @@ const server = http.createServer(async (req, res) => {
     const profile = [...profilesByGst.values()].find(item => item.id === profileId)
     if (!profile) return json(res, 404, { error: 'No customer profile is linked to this sign-in.' })
     const relatedOrders = orders.filter(order => order.profileId === profile.id)
-    if (relatedOrders.some(order => isOrderPaymentEditLocked(order) || hasUnresolvedRazorpayRefund(order))) return json(res, 423, { error: 'A fully paid order or unresolved Razorpay refund on this profile must be resolved before deletion.' })
+    if (relatedOrders.some(order => isOrderPaymentEditLocked(order) || hasUnresolvedOnlineRefund(order))) return json(res, 423, { error: 'A fully paid order or unresolved online refund on this profile must be resolved before deletion.' })
     profile.updatedAt = new Date().toISOString()
     queueProfileUpdateEmail(profile, [['Profile status', 'Moved to the 30-day recovery bin at your request'], ['Active orders', relatedOrders.length]], null, {
       title: 'Customer profile deletion recorded', sectionTitle: 'Record update',
@@ -2648,7 +3018,7 @@ const server = http.createServer(async (req, res) => {
     const orderId = decodeURIComponent(url.pathname.slice('/api/orders/'.length))
     const order = orders.find(item => item.id === orderId)
     if (!order) return json(res, 404, { error: 'Order not found.' })
-    if (hasUnresolvedRazorpayRefund(order)) return json(res, 423, { error: 'Resolve or retry this order’s Razorpay refund before deleting the order.' })
+    if (hasUnresolvedOnlineRefund(order)) return json(res, 423, { error: 'Resolve or retry this order’s online refund before deleting the order.' })
     if (isOrderPaymentEditLocked(order)) return json(res, 423, { error: `This fully paid order is locked until ${getOrderPaymentEditLockUntil(order)}.`, paymentEditLockedUntil: getOrderPaymentEditLockUntil(order) })
     const profile = [...profilesByGst.values()].find(item => item.id === order.profileId)
     order.updatedAt = new Date().toISOString()
@@ -2674,7 +3044,7 @@ const server = http.createServer(async (req, res) => {
     const profile = [...profilesByGst.values()].find(item => item.id === profileId)
     if (!profile) return json(res, 404, { error: 'Customer profile not found.' })
     const relatedOrders = orders.filter(order => order.profileId === profile.id)
-    if (relatedOrders.some(order => isOrderPaymentEditLocked(order) || hasUnresolvedRazorpayRefund(order))) return json(res, 423, { error: 'A fully paid order or unresolved Razorpay refund on this profile must be resolved before deletion.' })
+    if (relatedOrders.some(order => isOrderPaymentEditLocked(order) || hasUnresolvedOnlineRefund(order))) return json(res, 423, { error: 'A fully paid order or unresolved online refund on this profile must be resolved before deletion.' })
     profile.updatedAt = new Date().toISOString()
     queueProfileUpdateEmail(profile, [['Profile status', 'Moved to the 30-day admin recovery bin'], ['Active orders', relatedOrders.length]], null, {
       title: 'Customer profile moved to recovery', sectionTitle: 'Record update',
@@ -2695,16 +3065,16 @@ const server = http.createServer(async (req, res) => {
     if (!order) return json(res, 404, { error: 'Order not found.' })
     const payment = (order.payments || []).find(item => item.id === decodeURIComponent(refundPath[2]))
     if (!payment) return json(res, 404, { error: 'Payment record not found.' })
-    if (order.status !== 'Cancelled' || payment.provider !== 'Razorpay' || payment.status !== 'Paid' || payment.refundStatus !== 'failed') {
-      return json(res, 409, { error: 'Only a failed automatic refund on a cancelled Razorpay order can be retried.' })
+    if (order.status !== 'Cancelled' || !isGatewayPayment(payment) || payment.status !== 'Paid' || payment.refundStatus !== 'failed') {
+      return json(res, 409, { error: 'Only a failed automatic refund on a cancelled online payment can be retried.' })
     }
     try {
-      await initiateRazorpayRefund(order, payment, { reason: `Admin retry for cancelled order ${order.id}`, suffix: `retry-${Date.now()}` })
+      await initiateOnlineRefund(order, payment, { reason: `Admin retry for cancelled order ${order.id}`, suffix: `retry-${Date.now()}` })
     } catch (error) {
       await markRazorpayRefundFailed(order, payment, error, { notify: true })
       return json(res, 502, { error: payment.refundFailureReason, order: orderForDashboard(order), payment })
     }
-    await emailPaymentStateChange(order, 'Refund retry submitted', [['Payment reference', payment.razorpayPaymentId], ['Refund status', payment.refundStatus], ['Refunded amount', formatINR(payment.amountRefunded || 0)]], `The agency retried the Razorpay refund for order ${order.id}. The updated status is listed below.`)
+    await emailPaymentStateChange(order, 'Refund retry submitted', [['Payment provider', gatewayDisplayName(payment)], ['Payment reference', payment.razorpayPaymentId || payment.cashfreePaymentId], ['Refund status', payment.refundStatus], ['Refunded amount', formatINR(payment.amountRefunded || 0)]], `The agency retried the ${gatewayDisplayName(payment)} refund for order ${order.id}. The updated status is listed below.`)
     return json(res, 200, { order: orderForDashboard(order), payment })
   }
   if (req.method === 'PATCH' && url.pathname.startsWith('/api/orders/') && url.pathname.includes('/payments/')) {
@@ -2758,7 +3128,7 @@ const server = http.createServer(async (req, res) => {
     if (hasStatus && body.status === 'Rejected') {
       const hasUnresolvedPayment = Number(order.amountPaid || 0) > 0 || (order.payments || []).some(payment =>
         ['Paid', 'Verified', 'Pending verification'].includes(payment.status) ||
-        (payment.status === 'Awaiting Razorpay payment' && Date.parse(payment.expiresAt) > Date.now())
+        (['Awaiting Razorpay payment', 'Awaiting Cashfree payment'].includes(payment.status) && Date.parse(payment.expiresAt) > Date.now())
       )
       if (hasUnresolvedPayment) return json(res, 409, { error: 'This order has payment activity. Resolve or reconcile its payments before rejecting and deleting the order.' })
       const profile = [...profilesByGst.values()].find(item => item.id === order.profileId)
@@ -3087,12 +3457,14 @@ const emailSweep = setInterval(() => { processEmailOutbox().catch(() => {}) }, 1
 emailSweep.unref()
 let razorpayReconciliationInProgress = false
 async function runRazorpayReconciliationSweep() {
-  if (!RAZORPAY_CONFIGURED || razorpayReconciliationInProgress) return
+  if ((!RAZORPAY_CONFIGURED && !CASHFREE_CONFIGURED) || razorpayReconciliationInProgress) return
   razorpayReconciliationInProgress = true
   try {
     await refreshPortalStateFromAtlas()
     await reconcilePendingRazorpayPayments()
     await reconcilePendingRazorpayRefunds()
+    await reconcilePendingCashfreePayments()
+    await reconcilePendingCashfreeRefunds()
   } catch (error) {
     console.error('Could not refresh payment reconciliation data:', error.message)
   } finally {
