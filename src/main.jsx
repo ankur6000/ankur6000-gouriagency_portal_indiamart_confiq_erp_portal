@@ -1493,9 +1493,9 @@ function AdminNotices({ token }) {
     <div className="panel-heading"><div><span className="eyebrow">HOME PAGE CONTENT</span><h2>Notice board</h2><p>Publish important updates for visitors. The newest notice appears first and scrolls upward on the home page.</p></div><span className="admin-notice-count">{notices.length} saved</span></div>
     <form className="admin-notice-form" onSubmit={save}>
       <label>Notice heading<input type="text" maxLength={120} required value={title} disabled={saving} onChange={event => { setTitle(event.target.value); setMessage(''); setIsError(false) }} placeholder="Short, clear announcement"/></label>
-      <label>Notice message<textarea maxLength={8000} rows={5} required value={body} disabled={saving} onChange={event => { setBody(event.target.value); setMessage(''); setIsError(false) }} placeholder="Write the complete notice for customers and visitors."/></label>
+      <label>Notice message<textarea maxLength={15000} rows={5} required value={body} disabled={saving} onChange={event => { setBody(event.target.value); setMessage(''); setIsError(false) }} placeholder="Write the complete notice for customers and visitors."/></label>
       <label className="admin-notice-priority"><input type="checkbox" checked={priority === 'high'} disabled={saving} onChange={event => setPriority(event.target.checked ? 'high' : 'standard')}/><span><strong>High priority alert</strong><small>Show a blinking alert mark beside this notice.</small></span></label>
-      <div className="admin-notice-form-footer"><small>{body.length}/8000 characters</small><button className="button dark" type="submit" disabled={saving || loading}>{saving ? <LoadingAction loading label="Publishing notice…"/> : <>Publish notice <Plus size={15}/></>}</button></div>
+      <div className="admin-notice-form-footer"><small>{body.length}/15000 characters</small><button className="button dark" type="submit" disabled={saving || loading}>{saving ? <LoadingAction loading label="Publishing notice…"/> : <>Publish notice <Plus size={15}/></>}</button></div>
       {message && <p className={`admin-notice-feedback${isError ? ' is-error' : ''}`} role={isError ? 'alert' : 'status'}>{message}</p>}
     </form>
     <div className="admin-notice-list-heading"><h3>Published notices</h3><span>{notices.length}</span></div>

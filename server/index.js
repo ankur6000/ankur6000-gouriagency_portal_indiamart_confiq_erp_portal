@@ -171,7 +171,7 @@ function normalizeHomeNotices(items) {
   if (!Array.isArray(items)) return []
   return items.slice(0, 200).map(item => {
     const title = typeof item?.title === 'string' ? item.title.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) : ''
-    const body = typeof item?.body === 'string' ? item.body.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim().slice(0, 8000) : ''
+    const body = typeof item?.body === 'string' ? item.body.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim().slice(0, 15000) : ''
     const createdTimestamp = Date.parse(item?.createdAt || '')
     if (!title || !body || typeof item?.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(item.id)) return null
     return {
@@ -3073,7 +3073,7 @@ const server = http.createServer(async (req, res) => {
     const title = typeof body.title === 'string' ? body.title.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim() : ''
     const message = typeof body.body === 'string' ? body.body.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim() : ''
     if (!title || title.length > 120) return json(res, 400, { error: 'Enter a notice heading up to 120 characters.' })
-    if (!message || message.length > 8000) return json(res, 400, { error: 'Enter a notice message up to 8,000 characters.' })
+    if (!message || message.length > 15000) return json(res, 400, { error: 'Enter a notice message up to 15,000 characters.' })
     if (body.priority !== undefined && !['standard', 'high'].includes(body.priority)) return json(res, 400, { error: 'Choose a valid notice priority.' })
     if (notices.length >= 200) return json(res, 409, { error: 'The board has reached 200 notices. Delete an old notice before publishing another.' })
     const notice = { id: randomUUID(), title, body: message, priority: body.priority === 'high' ? 'high' : 'standard', createdAt: new Date().toISOString() }
