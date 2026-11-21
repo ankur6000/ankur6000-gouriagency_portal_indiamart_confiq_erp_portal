@@ -559,6 +559,86 @@ function reservedPaymentTotal(order) {
   const now = Date.now()
   return (order.payments || []).filter(payment => payment.status === 'Pending verification' || ['Razorpay payment processing', 'Cashfree payment processing'].includes(payment.status) || (['Awaiting Razorpay payment', 'Awaiting Cashfree payment'].includes(payment.status) && Date.parse(payment.expiresAt) > now)).reduce((sum, payment) => sum + payment.amount, 0)
 }
+function paymentRefundedForOrder(payment, orderId) {
+  if (payment?.provider === 'Account credit') return Number(payment.amountRefunded || 0)
+  const processed = (payment?.refunds || []).filter(refund => refund.status === 'processed')
+  if (!processed.some(refund => refund.allocationOrderId)) return Number(payment?.amountRefunded || 0)
+  return processed.reduce((sum, refund) => sum + (!refund.allocationOrderId || refund.allocationOrderId === orderId ? Number(refund.amount || 0) : 0), 0)
+}
+function confirmedOrderPaymentAmount(payment, orderId) {
+  return Math.max(0, Number(payment?.amountApplied ?? payment?.amount ?? 0) - paymentRefundedForOrder(payment, orderId))
+}
+function profileAvailableBalance(profileId) {
+  return orders.filter(order => order.profileId === profileId && !['Cancelled', 'Rejected'].includes(order.status))
+    .reduce((sum, order) => sum + Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - reservedPaymentTotal(order)), 0)
+}
+function carryForwardOrderCandidates(sourceOrder) {
+  const sourceDate = Date.parse(sourceOrder.createdAt || sourceOrder.date || '') || 0
+  return orders.filter(order => order.profileId === sourceOrder.profileId && order.id !== sourceOrder.id && !['Cancelled', 'Rejected'].includes(order.status))
+    .filter(order => Number(order.amountDue || 0) - Number(order.amountPaid || 0) - reservedPaymentTotal(order) > 0.005)
+    .sort((a, b) => {
+      const aDate = Date.parse(a.createdAt || a.date || '') || 0
+      const bDate = Date.parse(b.createdAt || b.date || '') || 0
+      const aSubsequent = aDate >= sourceDate
+      const bSubsequent = bDate >= sourceDate
+      if (aSubsequent !== bSubsequent) return aSubsequent ? -1 : 1
+      return aDate - bDate || String(a.id).localeCompare(String(b.id))
+    })
+}
+function addAccountCredit(sourceOrder, sourcePayment, destination, amount) {
+  const applied = Math.round(Number(amount) * 100) / 100
+  const credit = {
+    id: `CREDIT-${randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase()}`,
+    amount: applied,
+    amountApplied: applied,
+    transactionAmount: Number(sourcePayment.amount || 0),
+    provider: 'Account credit',
+    originalProvider: sourcePayment.provider || 'Payment',
+    status: 'Paid',
+    reference: `Credit from ${sourceOrder.id} · ${sourcePayment.reference || sourcePayment.id}`,
+    sourceOrderId: sourceOrder.id,
+    sourcePaymentId: sourcePayment.id,
+    allocatedAt: sourcePayment.paidAt || sourcePayment.reviewedAt || new Date().toISOString(),
+    paidAt: sourcePayment.paidAt || sourcePayment.reviewedAt || new Date().toISOString(),
+    allocationKind: 'carry-forward'
+  }
+  destination.payments ||= []
+  destination.payments.unshift(credit)
+  recomputeOrderPaidAmount(destination)
+  sourcePayment.allocations ||= []
+  sourcePayment.allocations.push({ orderId: destination.id, shopName: destination.shopName || '', amount: applied, role: 'carry-forward', paymentId: credit.id })
+  return credit
+}
+function refreshPaymentAllocationSummary(payment) {
+  payment.amountCarriedForward = Math.round((payment.allocations || []).filter(row => row.role === 'carry-forward').reduce((sum, row) => sum + Number(row.amount || 0), 0) * 100) / 100
+  payment.totalAllocated = Math.round((payment.allocations || []).reduce((sum, row) => sum + Number(row.amount || 0), 0) * 100) / 100
+}
+function applyConfirmedPaymentAllocation(order, payment) {
+  if (payment.allocationFinalizedAt || !['Paid', 'Verified'].includes(payment.status)) return
+  const transactionAmount = Math.max(0, Number(payment.amount || 0))
+  const sourceOutstanding = order.status === 'Cancelled'
+    ? transactionAmount
+    : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - reservedPaymentTotal(order))
+  const sourceAmount = Math.round(Math.min(transactionAmount, sourceOutstanding) * 100) / 100
+  payment.amountApplied = sourceAmount
+  payment.allocations = sourceAmount > 0 ? [{ orderId: order.id, shopName: order.shopName || '', amount: sourceAmount, role: 'order' }] : []
+  let remaining = Math.round((transactionAmount - sourceAmount) * 100) / 100
+  recomputeOrderPaidAmount(order)
+  if (order.status !== 'Cancelled' && remaining > 0.005) {
+    for (const destination of carryForwardOrderCandidates(order)) {
+      const available = Math.max(0, Number(destination.amountDue || 0) - Number(destination.amountPaid || 0) - reservedPaymentTotal(destination))
+      const applied = Math.round(Math.min(remaining, available) * 100) / 100
+      if (applied <= 0) continue
+      addAccountCredit(order, payment, destination, applied)
+      remaining = Math.round((remaining - applied) * 100) / 100
+      if (remaining <= 0.005) break
+    }
+  }
+  refreshPaymentAllocationSummary(payment)
+  payment.unallocatedAmount = Math.max(0, Math.round(remaining * 100) / 100)
+  payment.allocationFinalizedAt = new Date().toISOString()
+  recomputeOrderPaidAmount(order)
+}
 function getOrderPaymentEditLockUntil(order) {
   if (order?.status === 'Cancelled') return ''
   if (order?.paymentEditLockedUntil) return order.paymentEditLockedUntil
@@ -648,7 +728,7 @@ function updateCashfreeRefundRecord(payment, providerRefund, existing = {}) {
   if (!payment.refunds.includes(refund)) payment.refunds.push(refund)
   return refund
 }
-async function initiateCashfreeRefund(order, payment, { amount = null, reason = 'Client order cancellation' } = {}) {
+async function initiateCashfreeRefund(order, payment, { amount = null, reason = 'Client order cancellation', allocationOrderId = '' } = {}) {
   if (payment.provider !== 'Cashfree' || !payment.cashfreeOrderId || !payment.cashfreePaymentId) throw new Error('Only a confirmed Cashfree payment can be refunded automatically.')
   const lockKey = `${order.id}/${payment.id}`
   if (razorpayRefundsInProgress.has(lockKey)) return { status: payment.refundStatus || 'pending', duplicate: true }
@@ -677,7 +757,7 @@ async function initiateCashfreeRefund(order, payment, { amount = null, reason = 
     const refundAmount = amount === null ? refundable : Math.min(refundable, Math.max(0, Number(amount)))
     if (refundAmount < 0.01) return { status: payment.refundStatus || 'processed', duplicate: true }
     const refund = { id: `GA${String(order.id).replace(/[^A-Za-z0-9]/g, '')}${randomUUID().replace(/-/g, '').slice(0, 10)}`.slice(0, 40) }
-    Object.assign(refund, { amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason: String(reason).slice(0, 100), createdAt: refund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
+    Object.assign(refund, { amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason: String(reason).slice(0, 100), ...(allocationOrderId ? { allocationOrderId } : {}), createdAt: refund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
     payment.refunds ||= []
     if (!payment.refunds.includes(refund)) payment.refunds.push(refund)
     updateRefundTotals(order, payment)
@@ -715,9 +795,9 @@ async function initiateOnlineRefund(order, payment, options = {}) {
 function recomputeOrderPaidAmount(order) {
   const confirmed = (order.payments || []).filter(payment => ['Paid', 'Verified'].includes(payment.status))
   if (!confirmed.length) return Number(order.amountPaid || 0)
-  const recordedGross = confirmed.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+  const recordedGross = confirmed.reduce((sum, payment) => sum + Number(payment.amountApplied ?? payment.amount ?? 0), 0)
   if (!Number.isFinite(Number(order.paidBalanceAdjustment))) order.paidBalanceAdjustment = Math.max(0, Number(order.amountPaid || 0) - recordedGross)
-  const amount = Number(order.paidBalanceAdjustment || 0) + confirmed.reduce((sum, payment) => sum + Math.max(0, Number(payment.amount || 0) - Number(payment.amountRefunded || 0)), 0)
+  const amount = Number(order.paidBalanceAdjustment || 0) + confirmed.reduce((sum, payment) => sum + confirmedOrderPaymentAmount(payment, order.id), 0)
   order.amountPaid = Math.round(amount * 100) / 100
   return order.amountPaid
 }
@@ -1033,7 +1113,7 @@ function queuePaymentConfirmationEmail(profile, order, payment, ledger, receipt)
       title: 'Payment confirmation', greeting: customerName,
       introduction: `A payment for order ${order.id} has been recorded in your Gouri Agency account.`,
       sections: [
-        { title: 'Payment details', fields: [['Order number', order.id], ['Amount received', formatINR(payment.amount)], ['Payment method', payment.provider || 'Payment'], ['Transaction reference', payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId || '—'], ['Payment date and time', emailTimestamp(payment.paidAt || payment.reviewedAt)] ] },
+        { title: 'Payment details', fields: [['Order number', order.id], ['Transaction amount received', formatINR(payment.amount)], ['Applied to this order', formatINR(payment.amountApplied ?? payment.amount)], ['Carried to other open bills', (payment.allocations || []).filter(row => row.role === 'carry-forward').map(row => `${row.orderId}: ${formatINR(row.amount)}`).join('; ') || 'None'], ['Payment method', payment.provider || 'Payment'], ['Transaction reference', payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId || '—'], ['Payment date and time', emailTimestamp(payment.paidAt || payment.reviewedAt)] ] },
         { title: 'Updated order balance', fields: [['Total order due', formatINR(order.amountDue)], ['Total paid', formatINR(order.amountPaid)], ['Outstanding balance', formatINR(balance)], ['Last payment date and time', emailTimestamp(order.lastPaymentAt || payment.paidAt)] ] }
       ],
       attachmentNote: 'Attached are your payment receipt and updated order/customer profile PDF. These documents are also available from your client portal.'
@@ -1116,6 +1196,72 @@ const orderCancellationsInProgress = new Set()
 const onlinePaymentProviders = new Set(['Razorpay', 'Cashfree'])
 function isGatewayPayment(payment) { return onlinePaymentProviders.has(payment?.provider) }
 function gatewayDisplayName(payment) { return payment?.provider === 'Cashfree' ? 'Cashfree' : 'Razorpay' }
+async function reallocateCancelledAccountCredit(order, creditPayment) {
+  const sourceOrder = orders.find(item => item.id === creditPayment.sourceOrderId && item.profileId === order.profileId)
+  const sourcePayment = sourceOrder?.payments?.find(item => item.id === creditPayment.sourcePaymentId)
+  if (!sourceOrder || !sourcePayment) {
+    creditPayment.refundStatus = 'manual_review'
+    creditPayment.refundFailureReason = 'The source payment record for this account credit could not be found. Agency review is required.'
+    return { manualReview: Number(creditPayment.amountApplied ?? creditPayment.amount ?? 0) }
+  }
+  const movable = Math.max(0, Number(creditPayment.amountApplied ?? creditPayment.amount ?? 0) - Number(creditPayment.amountRefunded || 0))
+  sourcePayment.allocations = (sourcePayment.allocations || []).filter(row => row.orderId !== order.id || row.paymentId !== creditPayment.id)
+  creditPayment.allocationOriginalAmount = movable
+  creditPayment.status = 'Transferred'
+  creditPayment.amountApplied = 0
+  creditPayment.reallocatedAt = new Date().toISOString()
+  creditPayment.reference = `${creditPayment.reference || `Credit from ${sourceOrder.id}`} · order cancelled`
+  order.amountPaid = Math.max(0, Number(order.amountPaid || 0) - movable)
+  let remaining = movable
+  const movedTo = []
+  for (const destination of carryForwardOrderCandidates(sourceOrder)) {
+    const available = Math.max(0, Number(destination.amountDue || 0) - Number(destination.amountPaid || 0) - reservedPaymentTotal(destination))
+    const applied = Math.round(Math.min(remaining, available) * 100) / 100
+    if (applied <= 0) continue
+    const movedCredit = addAccountCredit(sourceOrder, sourcePayment, destination, applied)
+    movedTo.push({ orderId: destination.id, amount: applied, paymentId: movedCredit.id })
+    remaining = Math.round((remaining - applied) * 100) / 100
+    if (remaining <= 0.005) break
+  }
+  let refundStarted = 0
+  let manualReview = 0
+  if (remaining > 0.005 && isGatewayPayment(sourcePayment)) {
+    creditPayment.status = 'Paid'
+    creditPayment.amount = remaining
+    creditPayment.amountApplied = remaining
+    creditPayment.refundStatus = 'pending'
+    try {
+      await initiateOnlineRefund(sourceOrder, sourcePayment, {
+        amount: remaining,
+        allocationOrderId: order.id,
+        reason: `Return carry-forward credit after order ${order.id} was cancelled`,
+        suffix: `credit-${order.id}-${Date.now()}`
+      })
+      refundStarted = remaining
+    } catch (error) {
+      creditPayment.refundStatus = 'failed'
+      creditPayment.refundFailureReason = String(error.message || 'The carry-forward refund could not be started.').slice(0, 300)
+      manualReview = remaining
+    }
+  } else if (remaining > 0.005) {
+    creditPayment.status = 'Paid'
+    creditPayment.amount = remaining
+    creditPayment.amountApplied = remaining
+    creditPayment.refundStatus = 'manual_review'
+    creditPayment.refundFailureReason = 'The agency must review this bank-transfer account credit for manual refund or future bill adjustment.'
+    creditPayment.refunds ||= []
+    creditPayment.refunds.push({ id: `MANUAL-${randomUUID().replace(/-/g, '').slice(0, 10)}`, amount: remaining, status: 'manual_review', reason: 'Cancelled order account credit', allocationOrderId: order.id, createdAt: new Date().toISOString() })
+    manualReview = remaining
+  } else {
+    creditPayment.amount = Number(creditPayment.allocationOriginalAmount || creditPayment.amount || 0)
+  }
+  creditPayment.creditMovedAmount = Math.round(movedTo.reduce((sum, row) => sum + row.amount, 0) * 100) / 100
+  creditPayment.creditMovedTo = movedTo
+  refreshPaymentAllocationSummary(sourcePayment)
+  recomputeOrderPaidAmount(order)
+  recomputeOrderPaidAmount(sourceOrder)
+  return { moved: Math.round((movable - remaining) * 100) / 100, refundStarted, manualReview }
+}
 async function cancelOrderAndRequestRefund(order, cancelledBy) {
   if (orderCancellationsInProgress.has(order.id)) return { statusCode: 409, error: 'Cancellation is already being processed for this order. Refresh the order shortly.' }
   orderCancellationsInProgress.add(order.id)
@@ -1131,8 +1277,11 @@ async function performOrderCancellation(order, cancelledBy) {
   if ((order.payments || []).some(payment => payment.status === 'Verified')) {
     return { statusCode: 409, error: 'A confirmed bank transfer cannot be refunded automatically through an online gateway. Contact the agency to reconcile this order.' }
   }
-  const recordedOnlinePaid = (order.payments || []).filter(payment => isGatewayPayment(payment) && payment.status === 'Paid').reduce((sum, payment) => sum + Math.max(0, Number(payment.amount || 0) - Number(payment.amountRefunded || 0)), 0)
-  if (Number(order.amountPaid || 0) - recordedOnlinePaid > 0.005) {
+  const brokenCredit = (order.payments || []).find(payment => payment.provider === 'Account credit' && (!orders.some(item => item.id === payment.sourceOrderId && item.profileId === order.profileId && item.payments?.some(source => source.id === payment.sourcePaymentId))))
+  if (brokenCredit) return { statusCode: 409, error: 'This order has a carry-forward credit whose original payment record needs agency review before cancellation.' }
+  const recordedOnlinePaid = (order.payments || []).filter(payment => isGatewayPayment(payment) && payment.status === 'Paid').reduce((sum, payment) => sum + confirmedOrderPaymentAmount(payment, order.id), 0)
+  const recordedCarryForwardPaid = (order.payments || []).filter(payment => payment.provider === 'Account credit' && payment.status === 'Paid').reduce((sum, payment) => sum + confirmedOrderPaymentAmount(payment, order.id), 0)
+  if (Number(order.amountPaid || 0) - recordedOnlinePaid - recordedCarryForwardPaid > 0.005) {
     return { statusCode: 409, error: 'This order has a payment balance that cannot be traced to a verified online transaction. Contact the agency to review it before cancelling.' }
   }
   try {
@@ -1168,15 +1317,24 @@ async function performOrderCancellation(order, cancelledBy) {
   order.updatedAt = order.cancelledAt
   persistPortalState()
   const refundErrors = []
+  for (const creditPayment of (order.payments || []).filter(row => row.provider === 'Account credit' && row.status === 'Paid')) {
+    const result = await reallocateCancelledAccountCredit(order, creditPayment)
+    if (result.manualReview > 0.005) refundErrors.push(`${formatINR(result.manualReview)} account credit needs agency review.`)
+  }
   for (const payment of (order.payments || []).filter(row => isGatewayPayment(row) && row.status === 'Paid' && (row.razorpayPaymentId || row.cashfreePaymentId))) {
-    try { await initiateOnlineRefund(order, payment, { reason: `${cancelledBy} cancelled order ${order.id}`, suffix: 'cancel' }) }
+    const pendingForOrder = (payment.refunds || []).filter(refund => ['pending', 'initiating'].includes(refund.status) && (!refund.allocationOrderId || refund.allocationOrderId === order.id)).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
+    const sourcePaid = Math.max(0, Number(payment.amountApplied ?? payment.amount ?? 0) - paymentRefundedForOrder(payment, order.id) - pendingForOrder)
+    if (sourcePaid < 0.01) continue
+    try { await initiateOnlineRefund(order, payment, { amount: sourcePaid, allocationOrderId: order.id, reason: `${cancelledBy} cancelled order ${order.id}`, suffix: 'cancel' }) }
     catch (error) { payment.refundStatus = 'failed'; payment.refundFailureReason = String(error.message || `${gatewayDisplayName(payment)} refund could not be started.`).slice(0, 300); refundErrors.push(payment.refundFailureReason) }
   }
   recomputeOrderPaidAmount(order)
   const paidOnline = (order.payments || []).some(payment => payment.status === 'Paid' && isGatewayPayment(payment))
-  const refundProviderNames = [...new Set((order.payments || []).filter(payment => payment.refundStatus && isGatewayPayment(payment)).map(gatewayDisplayName))].join(' and ')
+  const refundProviderNames = [...new Set((order.payments || []).filter(payment => payment.refundStatus && (isGatewayPayment(payment) || payment.originalProvider)).map(payment => payment.originalProvider || gatewayDisplayName(payment)))].join(' and ')
   const refundStates = (order.payments || []).filter(payment => payment.refundStatus).map(payment => payment.refundStatus)
-  const refundSummary = refundStates.includes('failed') ? 'Refund failed — the agency must review the payment.' : refundStates.includes('pending') ? `Refund initiated — ${refundProviderNames || 'payment provider'} is processing it.` : refundStates.includes('processed') || refundStates.includes('partially_refunded') ? `Refund processed by ${refundProviderNames || 'the payment provider'}.` : paidOnline ? 'Refund requested.' : 'No successful payment was recorded; no refund was required.'
+  const movedCreditNote = (order.payments || []).filter(payment => payment.creditMovedAmount > 0).map(payment => `${formatINR(payment.creditMovedAmount)} account credit moved to ${(payment.creditMovedTo || []).map(row => row.orderId).join(', ')}.`).join(' ')
+  const refundStatusSummary = refundStates.includes('failed') ? 'Refund failed — the agency must review the payment.' : refundStates.includes('manual_review') ? 'Account credit needs agency review for manual refund or future bill adjustment.' : refundStates.includes('pending') ? `Refund initiated — ${refundProviderNames || 'payment provider'} is processing it.` : refundStates.includes('processed') || refundStates.includes('partially_refunded') ? `Refund processed by ${refundProviderNames || 'the payment provider'}.` : paidOnline ? 'Refund requested.' : movedCreditNote ? '' : 'No successful payment was recorded; no refund was required.'
+  const refundSummary = [refundStatusSummary, movedCreditNote].filter(Boolean).join(' ')
   const fields = [['Order status', `Cancelled by ${cancelledBy.toLowerCase()}`], ['Cancellation time', emailTimestamp(order.cancelledAt)], ['Payment and refund status', refundSummary], ['Outstanding balance', formatINR(0)]]
   for (const payment of (order.payments || []).filter(item => item.refundStatus)) {
     const requestedRefund = (payment.refunds || []).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
@@ -1184,6 +1342,9 @@ async function performOrderCancellation(order, cancelledBy) {
     for (const refund of payment.refunds || []) fields.push([`${gatewayDisplayName(payment)} refund reference`, refund.id || refund.receipt || 'Submitted'])
   }
   if (refundErrors.length) fields.push(['Refund review', refundErrors.join(' ')])
+  const accountProfile = [...profilesByGst.values()].find(item => item.id === order.profileId)
+  if (accountProfile) await refreshLatestLedger(accountProfile, order)
+  persistPortalState()
   const emailJob = await emailPaymentStateChange(order, 'Order cancelled and payment reviewed', fields, `Your cancellation for order ${order.id} has been recorded. The payment and refund status is listed below.`)
   return { order, refundSummary, emailStatus: emailJob.status }
 }
@@ -1201,8 +1362,25 @@ function updateRefundTotals(order, payment) {
   const hasFailed = payment.refunds.some(refund => refund.status === 'failed')
   payment.refundStatus = hasPending ? 'pending' : payment.amountRefunded >= Number(payment.amount || 0) - 0.005 ? 'processed' : hasFailed ? 'failed' : payment.amountRefunded > 0 ? 'partially_refunded' : ''
   recomputeOrderPaidAmount(order)
+  for (const refund of payment.refunds) {
+    if (!refund.allocationOrderId) continue
+    const allocatedOrder = orders.find(item => item.id === refund.allocationOrderId && item.profileId === order.profileId)
+    const credit = allocatedOrder?.payments?.find(item => item.provider === 'Account credit' && item.sourceOrderId === order.id && item.sourcePaymentId === payment.id && item.allocationKind === 'carry-forward')
+    if (!credit) continue
+    credit.refunds ||= []
+    const mirrored = credit.refunds.find(item => item.id === refund.id || (refund.receipt && item.receipt === refund.receipt)) || {}
+    Object.assign(mirrored, refund)
+    if (!credit.refunds.includes(mirrored)) credit.refunds.push(mirrored)
+    credit.amountRefunded = Math.round(credit.refunds.filter(item => item.status === 'processed').reduce((sum, item) => sum + Number(item.amount || 0), 0) * 100) / 100
+    const creditPending = credit.refunds.some(item => ['pending', 'initiating'].includes(item.status))
+    const creditFailed = credit.refunds.some(item => item.status === 'failed')
+    credit.refundStatus = creditPending ? 'pending' : credit.amountRefunded >= Number(credit.amountApplied ?? credit.amount ?? 0) - 0.005 ? 'processed' : creditFailed ? 'failed' : credit.amountRefunded > 0 ? 'partially_refunded' : ''
+    recomputeOrderPaidAmount(allocatedOrder)
+  }
+  const profile = [...profilesByGst.values()].find(item => item.id === order.profileId)
+  if (profile?.latestLedgerPdf) profile.latestLedgerPdf.templateVersion = 0
 }
-async function initiateRazorpayRefund(order, payment, { amount = null, reason = 'Client order cancellation', suffix = 'cancel' } = {}) {
+async function initiateRazorpayRefund(order, payment, { amount = null, reason = 'Client order cancellation', suffix = 'cancel', allocationOrderId = '' } = {}) {
   if (payment.provider !== 'Razorpay' || !payment.razorpayPaymentId) throw new Error('Only a captured Razorpay payment can be refunded automatically.')
   const lockKey = `${order.id}/${payment.id}`
   if (razorpayRefundsInProgress.has(lockKey)) return { status: payment.refundStatus || 'pending', duplicate: true }
@@ -1235,14 +1413,14 @@ async function initiateRazorpayRefund(order, payment, { amount = null, reason = 
     if (!refund) {
       const local = payment.refunds.find(item => item.receipt === receipt)
       if (local && local.status === 'failed') payment.refunds.splice(payment.refunds.indexOf(local), 1)
-      const pending = { receipt, amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason, createdAt: new Date().toISOString() }
+      const pending = { receipt, amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason, ...(allocationOrderId ? { allocationOrderId } : {}), createdAt: new Date().toISOString() }
       payment.refunds.push(pending)
       updateRefundTotals(order, payment)
       persistPortalState()
       try {
         refund = await razorpayRequest(`payments/${encodeURIComponent(payment.razorpayPaymentId)}/refund`, {
           method: 'POST',
-          body: { amount: Math.round(refundAmount * 100), speed: 'normal', receipt, notes: { portal_order_id: order.id, reason: String(reason).slice(0, 200) } }
+          body: { amount: Math.round(refundAmount * 100), speed: 'normal', receipt, notes: { portal_order_id: order.id, ...(allocationOrderId ? { allocation_order_id: allocationOrderId } : {}), reason: String(reason).slice(0, 200) } }
         })
       } catch (error) {
         pending.status = 'failed'
@@ -1254,7 +1432,7 @@ async function initiateRazorpayRefund(order, payment, { amount = null, reason = 
     }
     payment.refunds ||= []
     const localRefund = payment.refunds.find(item => item.id === refund.id || item.receipt === receipt) || {}
-    Object.assign(localRefund, { id: refund.id || localRefund.id, receipt: refund.receipt || receipt, amount: Number(refund.amount || Math.round(refundAmount * 100)) / 100, status: refund.status || 'pending', reason, createdAt: localRefund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
+    Object.assign(localRefund, { id: refund.id || localRefund.id, receipt: refund.receipt || receipt, amount: Number(refund.amount || Math.round(refundAmount * 100)) / 100, status: refund.status || 'pending', reason, ...(allocationOrderId ? { allocationOrderId } : {}), createdAt: localRefund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
     if (!payment.refunds.includes(localRefund)) payment.refunds.push(localRefund)
     updateRefundTotals(order, payment)
     if (payment.refundStatus !== 'failed') delete payment.refundFailureReason
@@ -1309,12 +1487,6 @@ async function reconcileRazorpayPayment(order, payment) {
       if (order.status === 'Cancelled') {
         try { await initiateRazorpayRefund(order, payment, { reason: 'Late capture after client cancellation', suffix: 'late-cancel' }); refundSummary = payment.refundStatus === 'pending' ? 'Refund processing' : 'Refund submitted' }
         catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }); refundSummary = 'Refund review required' }
-      } else {
-        const excess = Math.max(0, Number(order.amountPaid || 0) - Number(order.amountDue || 0))
-        if (excess > 0.005) {
-          try { await initiateRazorpayRefund(order, payment, { amount: excess, reason: 'Payment reconciliation surplus', suffix: 'surplus' }) }
-          catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }) }
-        }
       }
     }
     if (order.status === 'Cancelled' && !refundSummary) refundSummary = payment.refundStatus === 'pending' ? 'Refund processing' : payment.refundStatus === 'processed' ? 'Refund processed' : payment.refundStatus === 'failed' ? 'Refund review required' : 'Refund submitted'
@@ -1432,12 +1604,6 @@ async function reconcileCashfreePayment(order, payment) {
       if (order.status === 'Cancelled') {
         try { await initiateCashfreeRefund(order, payment, { reason: 'Late payment after client cancellation' }); refundSummary = payment.refundStatus === 'pending' ? 'Refund processing' : 'Refund submitted' }
         catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }); refundSummary = 'Refund review required' }
-      } else {
-        const excess = Math.max(0, Number(order.amountPaid || 0) - Number(order.amountDue || 0))
-        if (excess > 0.005) {
-          try { await initiateCashfreeRefund(order, payment, { amount: excess, reason: 'Payment reconciliation surplus' }) }
-          catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }) }
-        }
       }
     } else if (order.status === 'Cancelled' && payment.refundStatus !== 'processed' && payment.refundStatus !== 'pending') {
       try { await initiateCashfreeRefund(order, payment, { reason: 'Late payment after client cancellation' }) }
@@ -1817,7 +1983,7 @@ async function finalizeConfirmedPayment(order, payment, { status, reference, raz
   const previouslyPaid = Number(order.amountPaid || 0)
   if (!Number.isFinite(Number(order.paidBalanceAdjustment))) {
     const previouslyRecordedPayments = (order.payments || []).filter(row => ['Paid', 'Verified'].includes(row.status))
-      .reduce((sum, row) => sum + Math.max(0, Number(row.amount || 0) - Number(row.amountRefunded || 0)), 0)
+      .reduce((sum, row) => sum + confirmedOrderPaymentAmount(row, order.id), 0)
     order.paidBalanceAdjustment = Math.max(0, previouslyPaid - previouslyRecordedPayments)
   }
   payment.status = status
@@ -1826,6 +1992,7 @@ async function finalizeConfirmedPayment(order, payment, { status, reference, raz
   if (cashfreePaymentId) payment.cashfreePaymentId = cashfreePaymentId
   payment.paidAt ||= new Date().toISOString()
   payment.dueAtPayment = Number(order.amountDue || 0)
+  applyConfirmedPaymentAllocation(order, payment)
   recomputeOrderPaidAmount(order)
   payment.totalPaidAfter = order.amountPaid
   payment.balanceAfterPayment = Math.max(0, Number(payment.dueAtPayment || 0) - order.amountPaid)
@@ -1848,7 +2015,7 @@ async function finalizeConfirmedPayment(order, payment, { status, reference, raz
     payment.emailStatus = job.status
     persistPortalState()
   }
-  return { order, payment, profile, ledger, receipt }
+  return { order, payment, profile, ledger, receipt, affectedOrders: orders.filter(item => item.profileId === order.profileId) }
 }
 async function sendPaymentReceipt(res, order, payment) {
   if (!['Paid', 'Verified'].includes(payment.status)) return json(res, 409, { error: 'A receipt is available after the payment is captured or verified.' })
@@ -2620,8 +2787,8 @@ const server = http.createServer(async (req, res) => {
     const body = await readJson(req, res)
     if (!body) return
     const amount = Number(body.amount)
-    const availableDue = Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - reservedPaymentTotal(order))
-    if (!Number.isFinite(amount) || Math.round(amount * 100) < 100 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter a Cashfree payment amount of at least ₹1 and no more than the unpaid balance.' })
+    const availableDue = profileAvailableBalance(profileId)
+    if (!Number.isFinite(amount) || Math.round(amount * 100) < 100 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter a Cashfree payment amount of at least ₹1 and no more than this profile’s total outstanding balance.' })
     const profile = [...profilesByGst.values()].find(item => item.id === profileId)
     const customerPhone = String(profile?.mobile || order.mobile || '').replace(/\D/g, '').slice(-10)
     if (!/^\d{10}$/.test(customerPhone)) return json(res, 400, { error: 'A valid 10-digit registered mobile number is required for Cashfree checkout. Update the profile and retry.' })
@@ -2703,8 +2870,8 @@ const server = http.createServer(async (req, res) => {
     if (!body) return
     const amount = Number(body.amount)
     const amountPaise = Math.round(amount * 100)
-    const availableDue = Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - reservedPaymentTotal(order))
-    if (!Number.isFinite(amount) || amountPaise < 100 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter an online payment amount of at least ₹1 and no more than the unpaid balance.' })
+    const availableDue = profileAvailableBalance(profileId)
+    if (!Number.isFinite(amount) || amountPaise < 100 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter an online payment amount of at least ₹1 and no more than this profile’s total outstanding balance.' })
     try {
       const receipt = `${order.id}-${randomUUID().replace(/-/g, '').slice(0, 12)}`.slice(0, 40)
       const razorpayOrder = await razorpayRequest('orders', { method: 'POST', body: { amount: amountPaise, currency: 'INR', receipt, notes: { gouri_order_id: order.id } } })
@@ -2814,12 +2981,6 @@ const server = http.createServer(async (req, res) => {
       if (order.status === 'Cancelled') {
         try { await initiateRazorpayRefund(order, payment, { reason: 'Late capture after client cancellation', suffix: 'late-cancel' }); refundSummary = payment.refundStatus }
         catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }); refundSummary = 'failed' }
-      } else {
-        const excess = Math.max(0, Number(order.amountPaid || 0) - Number(order.amountDue || 0))
-        if (excess > 0.005) {
-          try { await initiateRazorpayRefund(order, payment, { amount: excess, reason: 'Payment reconciliation surplus', suffix: 'surplus' }) }
-          catch (error) { await markRazorpayRefundFailed(order, payment, error, { notify: true }) }
-        }
       }
       return json(res, 200, { order: clientOrderForDashboard(finalized.order), payment: finalized.payment, refundSummary, emailStatus: finalized.payment.emailStatus || 'needs_configuration' })
     } catch (error) {
@@ -2840,9 +3001,8 @@ const server = http.createServer(async (req, res) => {
     const amount = Number(body.amount)
     const reference = typeof body.reference === 'string' ? body.reference.trim() : ''
     const provider = ['IMPS', 'NEFT', 'RTGS'].includes(body.provider) ? body.provider : ''
-    const pendingTotal = reservedPaymentTotal(order)
-    const availableDue = Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - pendingTotal)
-    if (!Number.isFinite(amount) || amount <= 0 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter a payment amount up to the currently unpaid balance.' })
+    const availableDue = profileAvailableBalance(profileId)
+    if (!Number.isFinite(amount) || amount <= 0 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter a payment amount up to this profile’s total outstanding balance.' })
     if (!provider) return json(res, 400, { error: 'Choose IMPS, NEFT, or RTGS for the bank transfer.' })
     if (!/^[A-Za-z0-9/-]{6,64}$/.test(reference)) return json(res, 400, { error: 'Enter a payment reference or UTR with 6 to 64 letters or numbers.' })
     const payment = { id: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`, amount: Math.round(amount * 100) / 100, reference, provider, status: 'Pending verification', submittedAt: new Date().toISOString() }

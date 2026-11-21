@@ -110,6 +110,7 @@ export function createStatementPdf({ profile, orders = [], fromDate, toDate, gen
     const paymentDateKey = dateKeyFromValue(paymentDate)
     if (paymentDateKey && paymentDateKey >= fromDate && paymentDateKey <= toDate) activity.push({ order, payment, date: paymentDate, kind: 'payment' })
     for (const refund of payment.refunds || []) {
+      if (refund.allocationOrderId && refund.allocationOrderId !== order.id) continue
       const refundDate = refund.processedAt || refund.updatedAt || refund.createdAt
       const refundDateKey = dateKeyFromValue(refundDate)
       if (refundDateKey && refundDateKey >= fromDate && refundDateKey <= toDate) activity.push({ order, payment, refund, date: refundDate, kind: 'refund' })
@@ -121,7 +122,7 @@ export function createStatementPdf({ profile, orders = [], fromDate, toDate, gen
   const outstanding = allOrders.reduce((sum, order) => sum + (order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0))), 0)
   const confirmedPaymentsInPeriod = paymentsInPeriod.reduce((sum, row) => {
     if (row.kind === 'refund') return row.refund.status === 'processed' ? sum - Number(row.refund.amount || 0) : sum
-    return ['Paid', 'Verified'].includes(row.payment.status) ? sum + Number(row.payment.amount || 0) : sum
+    return ['Paid', 'Verified'].includes(row.payment.status) ? sum + Number(row.payment.amountApplied ?? row.payment.amount ?? 0) : sum
   }, 0)
 
   const pages = []
@@ -242,9 +243,10 @@ export function createStatementPdf({ profile, orders = [], fromDate, toDate, gen
     for (const row of paymentsInPeriod) {
       const { order, payment, refund, kind, date } = row
       const isRefund = kind === 'refund'
+      const carrySummary = (payment.allocations || []).filter(allocation => allocation.role === 'carry-forward').map(allocation => `${allocation.orderId} ${pdfMoney(allocation.amount)}`).join(', ')
       const detail = isRefund
-        ? `Razorpay refund - ${refund.id || refund.receipt || 'Reference pending'}`
-        : `${payment.provider || 'Payment'} - ${payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || 'No reference'}`
+        ? `${payment.originalProvider || payment.provider || 'Payment'} refund - ${refund.id || refund.receipt || 'Reference pending'}`
+        : `${payment.provider || 'Payment'} - ${payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || 'No reference'}${payment.allocationKind === 'carry-forward' ? ` · Credit from ${payment.sourceOrderId || 'earlier order'}` : carrySummary ? ` · Carried to ${carrySummary}` : ''}`
       const detailLines = wrappedLines(detail, 47, 2)
       const rowHeight = Math.max(30, detailLines.length * 10 + 11)
       ensureSpace(rowHeight + 1)
@@ -252,9 +254,9 @@ export function createStatementPdf({ profile, orders = [], fromDate, toDate, gen
       text(MARGIN + 5, cursor + 16, `${pdfTime(date)} IST`, 6, 'F1', [0.44, 0.49, 0.45])
       text(108, cursor + 8, order.id, 7, 'F2')
       detailLines.forEach((item, index) => text(163, cursor + 6 + index * 10, item, 7, 'F1', isRefund ? [0.52, 0.35, 0.31] : [0.30, 0.36, 0.31]))
-      const amount = isRefund && refund.status === 'processed' ? -Number(refund.amount || 0) : isRefund ? Number(refund.amount || 0) : Number(payment.amount || 0)
+      const amount = isRefund && refund.status === 'processed' ? -Number(refund.amount || 0) : isRefund ? Number(refund.amount || 0) : Number(payment.amountApplied ?? payment.amount ?? 0)
       rightText(484, cursor + 8, amount < 0 ? `-INR ${Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : pdfMoney(amount), 7, 'F1')
-      const status = isRefund ? `Refund ${refund.status || 'pending'}` : payment.status || 'Unknown'
+      const status = isRefund ? `Refund ${refund.status === 'manual_review' ? 'agency review' : refund.status || 'pending'}` : payment.status || 'Unknown'
       const statusColor = isRefund && refund.status === 'processed' ? [0.24, 0.43, 0.28] : isRefund && refund.status === 'failed' ? [0.60, 0.25, 0.20] : [0.32, 0.39, 0.33]
       text(495, cursor + 8, status, 6.5, 'F2', statusColor)
       cursor += rowHeight
