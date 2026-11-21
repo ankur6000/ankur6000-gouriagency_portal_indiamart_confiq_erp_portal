@@ -1375,6 +1375,8 @@ function updateRefundTotals(order, payment) {
     const creditPending = credit.refunds.some(item => ['pending', 'initiating'].includes(item.status))
     const creditFailed = credit.refunds.some(item => item.status === 'failed')
     credit.refundStatus = creditPending ? 'pending' : credit.amountRefunded >= Number(credit.amountApplied ?? credit.amount ?? 0) - 0.005 ? 'processed' : creditFailed ? 'failed' : credit.amountRefunded > 0 ? 'partially_refunded' : ''
+    if (creditFailed) credit.refundFailureReason = refund.failureReason || 'The payment provider could not process this refund.'
+    else if (refund.status === 'processed') delete credit.refundFailureReason
     recomputeOrderPaidAmount(allocatedOrder)
   }
   const profile = [...profilesByGst.values()].find(item => item.id === order.profileId)
@@ -3540,6 +3542,25 @@ const server = http.createServer(async (req, res) => {
     if (!order) return json(res, 404, { error: 'Order not found.' })
     const payment = (order.payments || []).find(item => item.id === decodeURIComponent(refundPath[2]))
     if (!payment) return json(res, 404, { error: 'Payment record not found.' })
+    if (order.status === 'Cancelled' && payment.provider === 'Account credit' && payment.refundStatus === 'failed') {
+      const sourceOrder = orders.find(item => item.id === payment.sourceOrderId && item.profileId === order.profileId)
+      const sourcePayment = sourceOrder?.payments?.find(item => item.id === payment.sourcePaymentId)
+      if (!sourceOrder || !sourcePayment || !isGatewayPayment(sourcePayment) || sourcePayment.status !== 'Paid') return json(res, 409, { error: 'The source gateway payment is unavailable for an automatic retry.' })
+      const pendingForOrder = (sourcePayment.refunds || []).filter(refund => refund.allocationOrderId === order.id && ['pending', 'initiating'].includes(refund.status)).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
+      const retryAmount = Math.max(0, Number(payment.amountApplied ?? payment.amount ?? 0) - Number(payment.amountRefunded || 0) - pendingForOrder)
+      if (retryAmount < 0.01) return json(res, 409, { error: 'No remaining carry-forward amount is available to refund.' })
+      try {
+        await initiateOnlineRefund(sourceOrder, sourcePayment, { amount: retryAmount, allocationOrderId: order.id, reason: `Admin retry for cancelled order ${order.id}`, suffix: `credit-retry-${order.id}-${Date.now()}` })
+      } catch (error) {
+        await markRazorpayRefundFailed(sourceOrder, sourcePayment, error, { notify: true })
+        return json(res, 502, { error: payment.refundFailureReason || error.message, order: orderForDashboard(order), payment })
+      }
+      const profile = [...profilesByGst.values()].find(item => item.id === order.profileId)
+      if (profile) await refreshLatestLedger(profile, order)
+      await emailPaymentStateChange(order, 'Refund retry submitted', [['Payment provider', payment.originalProvider || 'Payment gateway'], ['Source order', payment.sourceOrderId], ['Refund status', payment.refundStatus], ['Refund amount', formatINR(retryAmount)]], `The agency retried the carry-forward refund for cancelled order ${order.id}.`)
+      persistPortalState()
+      return json(res, 200, { order: orderForDashboard(order), payment })
+    }
     if (order.status !== 'Cancelled' || !isGatewayPayment(payment) || payment.status !== 'Paid' || payment.refundStatus !== 'failed') {
       return json(res, 409, { error: 'Only a failed automatic refund on a cancelled online payment can be retried.' })
     }
