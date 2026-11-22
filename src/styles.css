@@ -470,6 +470,9 @@
 .order-form .declaration-accept input{width:17px;min-height:17px;height:17px;margin:1px 0 0;accent-color:#415c50;cursor:pointer}
 @media(max-width:600px){.order-declaration{gap:14px;padding:17px}.order-declaration-copy h2{font-size:15px}.order-declaration-copy p{font-size:9px}.order-form .declaration-accept{font-size:9px}}
 .footer-compliance-banner{width:100%;margin:0;padding:20px clamp(12px,3vw,32px);border-top:1px solid var(--line);background:transparent;color:#667168;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:.1px;text-align:center;line-height:1.75}
+.footer-site-stats{display:flex;align-items:center;justify-content:center;gap:8px 24px;flex-wrap:wrap;margin-top:10px;color:#7a857c;font-size:9px;letter-spacing:.15px}
+.footer-site-stats>span{display:inline-flex;align-items:center;gap:6px}
+.footer-site-stats strong{color:#506458;font-weight:700}
 .dashboard-tabs{display:flex;gap:4px;margin:-15px 0 24px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
 .dashboard-tabs button{flex:0 0 auto;min-height:44px;padding:0 16px;border:0;border-bottom:2px solid transparent;background:transparent;color:#748077;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer}
 .dashboard-tabs button:hover{color:#26362d;background:#f7f9f6}
@@ -645,7 +648,7 @@
 @media(max-width:900px){.sales-analysis-filters{grid-template-columns:1fr 1fr}.sales-analysis-range{grid-column:1/-1;text-align:left}.sales-metrics-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.sales-chart-content{grid-template-columns:190px 1fr}.sales-chart-legend{grid-template-columns:1fr}}
 @media(max-width:600px){.order-cost-form{align-items:stretch;flex-wrap:wrap}.order-cost-form label{width:100%}.sales-analysis-filters{grid-template-columns:1fr;padding:14px}.sales-analysis-range{grid-column:auto}.sales-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sales-metrics-grid article{min-height:108px;padding:12px}.sales-chart-panel{padding:15px}.sales-chart-heading{align-items:flex-start;flex-direction:column}.sales-chart-content{grid-template-columns:1fr}.sales-pie-chart{width:min(75vw,220px)}.sales-chart-legend{grid-template-columns:1fr}.sales-additional-graphs{grid-template-columns:1fr}.sales-additional-graphs>.sales-chart-panel:first-child{grid-column:auto}.sales-status-row{grid-template-columns:78px minmax(40px,1fr) 22px}}
 html,body{overflow-x:clip}
-@media(max-width:600px){.footer-compliance-banner{padding:16px 10px;font-size:10px;line-height:1.65}}
+@media(max-width:600px){.footer-compliance-banner{padding:16px 10px;font-size:10px;line-height:1.65}.footer-site-stats{gap:7px 15px;font-size:8px}}
 .bank-settings-panel{margin:0 0 26px}
 .bank-settings-panel .panel-heading p{margin:7px 0 0;color:#7a857c;font-size:10px}
 .bank-settings-form{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding:20px 24px 23px}

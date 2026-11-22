@@ -39,6 +39,7 @@ if (!atlasConnected) throw new Error(`Could not connect to MongoDB Atlas (${mong
 const mongoDb = mongoClient.db(MONGODB_DB_NAME)
 await mongoDb.command({ ping: 1 })
 const portalStateCollection = mongoDb.collection('portal_state')
+const publicSiteStatsCollection = mongoDb.collection('public_site_stats')
 const portalStateBucket = new GridFSBucket(mongoDb, { bucketName: 'portal_state_snapshots' })
 const homeSliderAssetBucket = new GridFSBucket(mongoDb, { bucketName: 'home_slider_assets' })
 async function readGridFsBuffer(bucket, fileId) {
@@ -2202,6 +2203,23 @@ function validUpload(upload, allowedTypes) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`)
   const holidayCalendarMatch = /^\/api\/holidays\/(\d{4})\/([A-Z]{2})$/i.exec(url.pathname)
+  if (req.method === 'GET' && url.pathname === '/api/public-stats') {
+    try {
+      const stats = await publicSiteStatsCollection.findOne({ _id: 'homepage' }, { projection: { visitorCount: 1 } })
+      return json(res, 200, { visitorCount: Number(stats?.visitorCount || 0) })
+    } catch (error) {
+      return json(res, 503, { error: 'Visitor count is temporarily unavailable.' })
+    }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/public-stats/visit') {
+    try {
+      await publicSiteStatsCollection.updateOne({ _id: 'homepage' }, { $inc: { visitorCount: 1 }, $setOnInsert: { createdAt: new Date() } }, { upsert: true })
+      const stats = await publicSiteStatsCollection.findOne({ _id: 'homepage' }, { projection: { visitorCount: 1 } })
+      return json(res, 200, { visitorCount: Number(stats?.visitorCount || 0) })
+    } catch (error) {
+      return json(res, 503, { error: 'Visitor count could not be updated right now.' })
+    }
+  }
   const doesNotNeedPortalRefresh = ['/api/login', '/api/health', '/api/gst/verify'].includes(url.pathname) || /^\/api\/(?:pincode\/\d{6}|ifsc\/[A-Z]{4}0[A-Z0-9]{6}|holidays\/\d{4}\/[A-Z]{2})$/i.test(url.pathname)
   if (url.pathname.startsWith('/api/') && !doesNotNeedPortalRefresh) {
     if (req.method === 'GET' || req.method === 'HEAD') {

@@ -9,6 +9,7 @@ import SalesAnalysis from './SalesAnalysis.jsx'
 import './styles.css'
 
 const API = '/api'
+const SITE_BUILD_TIMESTAMP = __PORTAL_BUILD_TIMESTAMP__
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 const MAX_HOME_SLIDER_IMAGE_BYTES = 2 * 1024 * 1024
 const MAX_BULK_ORDER_FILE_BYTES = 10 * 1024 * 1024
@@ -843,6 +844,7 @@ function DocumentPreview({ document, onClose }) {
 
 const formatMoney = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(value || 0))
 const formatTimestamp = value => new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'Asia/Kolkata' })
+const formatSiteTimestamp = value => new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata', timeZoneName: 'short' }).format(new Date(value))
 const promoDateTimeInputValue = value => {
   if (!value || !Number.isFinite(Date.parse(value))) return ''
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(value)).map(part => [part.type, part.value]))
@@ -2400,6 +2402,8 @@ function ShopHours() {
 
 function App() {
   const [page, setPage] = useState('home')
+  const [siteVisitorCount, setSiteVisitorCount] = useState(null)
+  const siteVisitRequestRef = useRef(null)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const [orderIntakeSettings, setOrderIntakeSettings] = useState({ enabled: true, message: 'Order requests are temporarily closed. Please contact Gouri Agency for assistance.' })
   const [preloaderVisible, setPreloaderVisible] = useState(true)
@@ -2459,6 +2463,24 @@ function App() {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 15_000)
     return () => window.clearInterval(timer)
   }, [])
+  useEffect(() => {
+    if (page !== 'home') return
+    if (!siteVisitRequestRef.current) {
+      let alreadyCountedThisSession = false
+      try {
+        alreadyCountedThisSession = window.sessionStorage.getItem('gouri-agency-home-visit-counted') === '1'
+        if (!alreadyCountedThisSession) window.sessionStorage.setItem('gouri-agency-home-visit-counted', '1')
+      } catch {}
+      siteVisitRequestRef.current = fetch(`${API}${alreadyCountedThisSession ? '/public-stats' : '/public-stats/visit'}`, {
+        method: alreadyCountedThisSession ? 'GET' : 'POST', cache: 'no-store'
+      }).then(response => readApiJson(response, 'Visitor count could not be loaded.'))
+    }
+    let cancelled = false
+    siteVisitRequestRef.current.then(data => {
+      if (!cancelled) setSiteVisitorCount(Number(data.visitorCount || 0))
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [page])
   useEffect(() => {
     let cancelled = false
     const refreshOrderIntake = async () => {
@@ -3469,7 +3491,7 @@ function App() {
       </main>}
 
       <footer className="footer"><button className="brand" onClick={() => go('home')}><Mark small/><span className="brand-text">GOURI <b>AGENCY</b></span></button><span>Independent by nature. Good by design.</span><div><a href="#contact" onClick={event => { event.preventDefault(); go('contact') }}>Contact us <ArrowUpRight size={12}/></a><span>© 2026 Gouri Agency</span></div></footer>
-      {page === 'home' && <div className="footer-compliance-banner">Wholesale Pharmaceutical Distributor. Valid Wholesale Drug License No: [DL-BD-BDN/DGP/55-SBW] | GSTIN: [19AAFFG2609C1ZR]. Orders are strictly restricted to licensed pharmacies and medical institutions.</div>}
+      {page === 'home' && <div className="footer-compliance-banner">Wholesale Pharmaceutical Distributor. Valid Wholesale Drug License No: [DL-BD-BDN/DGP/55-SBW] | GSTIN: [19AAFFG2609C1ZR]. Orders are strictly restricted to licensed pharmacies and medical institutions.<div className="footer-site-stats"><span><strong>Visitor count</strong>{siteVisitorCount === null ? 'Loading…' : siteVisitorCount.toLocaleString('en-IN')}</span><span><strong>Website last updated</strong>{formatSiteTimestamp(SITE_BUILD_TIMESTAMP)}</span></div></div>}
       {page === 'admin' && externalPortal && <AdminExternalPortalDialog portalKey={externalPortal} onCancel={() => setExternalPortal(null)} onAgree={() => window.location.assign(ADMIN_EXTERNAL_PORTALS[externalPortal].url)}/>}
       {previewDocument && <DocumentPreview document={previewDocument} onClose={() => setPreviewDocument(null)}/>}
     </div>

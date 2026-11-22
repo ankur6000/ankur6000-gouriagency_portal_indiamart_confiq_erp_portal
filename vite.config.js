@@ -5,6 +5,7 @@ const apiTarget = process.env.API_PROXY_TARGET || `http://127.0.0.1:${process.en
 
 export default defineConfig({
   plugins: [react()],
+  define: { __PORTAL_BUILD_TIMESTAMP__: JSON.stringify(new Date().toISOString()) },
   worker: { format: 'es' },
   server: {
     port: 5173,
