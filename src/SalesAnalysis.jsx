@@ -100,6 +100,93 @@ function SalesShareChart({ items, totalSales, selectedProfile }) {
   </section>
 }
 
+function trendGranularity(range) {
+  const days = (Date.parse(`${range.end}T00:00:00Z`) - Date.parse(`${range.start}T00:00:00Z`)) / 86400000
+  return days <= 14 ? 'day' : days <= 90 ? 'week' : days <= 730 ? 'month' : 'year'
+}
+
+function trendBucketKey(dateKey, granularity) {
+  if (granularity === 'day') return dateKey
+  const date = new Date(`${dateKey}T12:00:00Z`)
+  if (granularity === 'week') {
+    const mondayOffset = (date.getUTCDay() + 6) % 7
+    date.setUTCDate(date.getUTCDate() - mondayOffset)
+    return date.toISOString().slice(0, 10)
+  }
+  if (granularity === 'month') return dateKey.slice(0, 7)
+  return dateKey.slice(0, 4)
+}
+
+function trendBucketLabel(key, granularity) {
+  if (granularity === 'year') return key
+  if (granularity === 'month') return new Intl.DateTimeFormat('en-IN', { month: 'short', year: '2-digit', timeZone: TIME_ZONE }).format(new Date(`${key}-01T12:00:00Z`))
+  const date = new Date(`${key}T12:00:00Z`)
+  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', timeZone: TIME_ZONE }).format(date)
+}
+
+function SalesTrendChart({ orders, payments, range }) {
+  const granularity = range.start && range.end ? trendGranularity(range) : 'day'
+  const values = new Map()
+  for (const order of orders) {
+    const key = trendBucketKey(salesDateKey(order.date), granularity)
+    if (!key) continue
+    const row = values.get(key) || { sales: 0, paid: 0 }
+    row.sales += Number(order.amountDue || 0)
+    values.set(key, row)
+  }
+  for (const { payment } of payments) {
+    const key = trendBucketKey(salesDateKey(payment.paidAt || payment.reviewedAt || payment.submittedAt), granularity)
+    if (!key) continue
+    const row = values.get(key) || { sales: 0, paid: 0 }
+    row.paid += Math.max(0, Number(payment.amount || 0) - Number(payment.amountRefunded || 0))
+    values.set(key, row)
+  }
+  const buckets = [...values.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, row]) => ({ key, label: trendBucketLabel(key, granularity), ...row }))
+  const max = Math.max(0, ...buckets.flatMap(item => [item.sales, item.paid]))
+  return <section className="sales-chart-panel" aria-label="Sales and payment collection over time">
+    <div className="sales-chart-heading"><div><span className="eyebrow">SALES TREND</span><h3>Sales and payments over time</h3></div><span>{granularity === 'day' ? 'Daily' : granularity === 'week' ? 'Weekly' : granularity === 'month' ? 'Monthly' : 'Yearly'} view</span></div>
+    {buckets.length ? <>
+      <div className="sales-trend-legend"><span><i className="billed"/> Sales billed</span><span><i className="collected"/> Payments received</span></div>
+      <div className="sales-trend-chart" role="img" aria-label={`Billed sales and received payments, ${buckets.length} time periods`}>
+        {buckets.map(item => <div className="sales-trend-column" key={item.key} title={`${item.label}: sales ${formatMoney(item.sales)}, payments received ${formatMoney(item.paid)}`}>
+          <div className="sales-trend-bars"><span className="billed" style={{ height: `${max ? Math.max(item.sales > 0 ? 3 : 0, item.sales / max * 100) : 0}%` }}/><span className="collected" style={{ height: `${max ? Math.max(item.paid > 0 ? 3 : 0, item.paid / max * 100) : 0}%` }}/></div>
+          <small>{item.label}</small>
+        </div>)}
+      </div>
+    </> : <div className="sales-chart-empty">No sales or confirmed payments were recorded in this date range.</div>}
+  </section>
+}
+
+function CollectionBalanceChart({ salesTotal, collectedTotal, receivedTotal, outstandingTotal }) {
+  const total = Math.max(0, salesTotal)
+  const paid = Math.min(total, Math.max(0, collectedTotal))
+  const outstanding = Math.min(Math.max(0, total - paid), Math.max(0, outstandingTotal))
+  const paidPercent = total ? paid / total * 100 : 0
+  const outstandingPercent = total ? outstanding / total * 100 : 0
+  return <section className="sales-chart-panel" aria-label="Payments received and outstanding balance">
+    <div className="sales-chart-heading"><div><span className="eyebrow">COLLECTION STATUS</span><h3>Paid and outstanding</h3></div><span>{formatMoney(total)} billed</span></div>
+    {total > 0 ? <>
+      <div className="sales-collection-track" role="img" aria-label={`${paidPercent.toFixed(0)} percent collected, ${outstandingPercent.toFixed(0)} percent outstanding`}><span className="collected" style={{ width: `${paidPercent}%` }}/><span className="outstanding" style={{ width: `${outstandingPercent}%` }}/></div>
+      <div className="sales-collection-legend"><div><i className="collected"/><span>Paid on selected orders</span><strong>{formatMoney(paid)}</strong></div><div><i className="outstanding"/><span>Outstanding</span><strong>{formatMoney(outstanding)}</strong></div><div><i className="received-period"/><span>Payments received in selected period</span><strong>{formatMoney(receivedTotal)}</strong></div></div>
+    </> : <div className="sales-chart-empty">No billed sales were recorded in this date range.</div>}
+  </section>
+}
+
+function OrderStatusChart({ orders }) {
+  const statuses = [
+    { label: 'In progress', color: '#91af75', matches: ['In progress', 'Pending approval'] },
+    { label: 'Approved', color: '#5f8b72', matches: ['Approved'] },
+    { label: 'Complete', color: '#365e4e', matches: ['Complete'] },
+    { label: 'Rejected', color: '#cf897c', matches: ['Rejected'] },
+    { label: 'Cancelled', color: '#b55d58', matches: ['Cancelled'] }
+  ].map(status => ({ ...status, count: orders.filter(order => status.matches.includes(order.status)).length }))
+  const max = Math.max(1, ...statuses.map(item => item.count))
+  return <section className="sales-chart-panel" aria-label="Order counts by status">
+    <div className="sales-chart-heading"><div><span className="eyebrow">ORDER SNAPSHOT</span><h3>Orders by status</h3></div><span>{orders.length} total</span></div>
+    {orders.length ? <div className="sales-status-chart">{statuses.map(item => <div className="sales-status-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${item.count / max * 100}%`, backgroundColor: item.color }}/></div><strong>{item.count}</strong></div>)}</div> : <div className="sales-chart-empty">No orders were placed in this date range.</div>}
+  </section>
+}
+
 export default function SalesAnalysis({ orders, profiles }) {
   const [period, setPeriod] = useState('1m')
   const [customRange, setCustomRange] = useState(getDefaultCustomRange)
@@ -108,11 +195,12 @@ export default function SalesAnalysis({ orders, profiles }) {
   const range = period === 'custom' ? customRange : getPeriodRange(period)
   const rangeIsValid = Boolean(range.start && range.end && range.start <= range.end)
   const selectedOrders = orders.filter(order => selectedProfile === 'all' || order.profileId === selectedProfile)
-  const periodOrders = selectedOrders.filter(order => {
-    if (!rangeIsValid || order.status === 'Cancelled') return false
+  const periodStatusOrders = selectedOrders.filter(order => {
+    if (!rangeIsValid) return false
     const date = salesDateKey(order.date)
     return date && date >= range.start && date <= range.end
   })
+  const periodOrders = periodStatusOrders.filter(order => order.status !== 'Cancelled')
   const periodPayments = selectedOrders.filter(order => order.status !== 'Cancelled').flatMap(order => (order.payments || []).map(payment => ({ payment }))).filter(({ payment }) => {
     if (!rangeIsValid) return false
     if (!['Paid', 'Verified'].includes(payment.status)) return false
@@ -123,6 +211,7 @@ export default function SalesAnalysis({ orders, profiles }) {
   const salesTotal = periodOrders.reduce((sum, order) => sum + Number(order.amountDue || 0), 0)
   const receivedTotal = periodPayments.reduce((sum, row) => sum + Math.max(0, Number(row.payment.amount || 0) - Number(row.payment.amountRefunded || 0)), 0)
   const outstandingTotal = periodOrders.reduce((sum, order) => sum + Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)), 0)
+  const collectedTotal = periodOrders.reduce((sum, order) => sum + Math.min(Math.max(0, Number(order.amountDue || 0)), Math.max(0, Number(order.amountPaid || 0))), 0)
   const outstandingOrderCount = periodOrders.filter(order => Number(order.amountDue || 0) - Number(order.amountPaid || 0) > 0.005).length
   const costsKnown = periodOrders.length > 0 && periodOrders.every(order => Number.isFinite(order.costAmount) && order.costAmount >= 0)
   const totalCosts = costsKnown ? periodOrders.reduce((sum, order) => sum + order.costAmount, 0) : 0
@@ -159,6 +248,7 @@ export default function SalesAnalysis({ orders, profiles }) {
       <article className={`sales-profit-metric ${profitState}`}><span>Gross profit / loss</span><strong>{costsKnown ? formatMoney(profit) : 'Cost data needed'}</strong><small>{costsKnown ? (profitState === 'loss' ? 'Recorded order costs exceed sales' : profitState === 'even' ? 'Sales and costs are even' : 'Sales less recorded order costs') : 'Enter internal cost on each order'}</small></article>
     </div>
     <SalesShareChart items={breakdown} totalSales={salesTotal} selectedProfile={selectedProfile}/>
+    <div className="sales-additional-graphs"><SalesTrendChart orders={periodOrders} payments={periodPayments} range={range}/><CollectionBalanceChart salesTotal={salesTotal} collectedTotal={collectedTotal} receivedTotal={receivedTotal} outstandingTotal={outstandingTotal}/><OrderStatusChart orders={periodStatusOrders}/></div>
     <section className="daily-top-customers" aria-labelledby="daily-top-customers-title"><div className="daily-top-customers-heading"><div><span className="eyebrow">DAILY CUSTOMER RANKING</span><h3 id="daily-top-customers-title">Top 5 customers {isToday ? 'today' : 'for this day'}</h3><p>Ranked by order value placed on the selected date.</p></div><label>Date<input type="date" value={leaderboardDate} max={salesDateKey(new Date())} onChange={event => setLeaderboardDate(event.target.value)}/></label></div>{topCustomers.length ? <ol className="daily-top-customer-list">{topCustomers.map((customer, index) => <li key={customer.key}><span className="daily-top-customer-medal" aria-label={`Rank ${index + 1}`}>{['🥇', '🥈', '🥉', '🏅', '⭐'][index]}</span><div><strong>{customer.shopName}</strong><small>{customer.orderCount} order{customer.orderCount === 1 ? '' : 's'} on {formatDate(leaderboardDate)}</small></div><b>{formatMoney(customer.sales)}</b></li>)}</ol> : <div className="sales-chart-empty">No non-cancelled orders with a recorded sale were found for this date.</div>}</section>
     <p className="sales-analysis-note">Profit/loss uses order total minus the internal cost entered by an admin. Missing costs are not assumed to be zero. Payments received count only verified or captured transactions; outstanding balances reflect current paid amounts on orders placed in the selected period.</p>
   </section>

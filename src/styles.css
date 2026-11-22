@@ -618,9 +618,32 @@
 .daily-top-customer-list li>div small{color:#839087;font-size:9px}
 .daily-top-customer-list li>b{color:#385844;font-size:11px;white-space:nowrap}
 .sales-chart-empty{padding:25px 14px;color:#828d84;font-size:10px;text-align:center}
+.sales-additional-graphs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.sales-additional-graphs>.sales-chart-panel:first-child{grid-column:1/-1}
+.sales-trend-legend{display:flex;flex-wrap:wrap;gap:16px;margin:0 0 10px;color:#718077;font-size:9px}
+.sales-trend-legend span{display:flex;align-items:center;gap:6px}
+.sales-trend-legend i,.sales-collection-legend i{width:9px;height:9px;flex:0 0 auto;border-radius:2px}
+.sales-trend-legend i.billed,.sales-trend-bars .billed{background:#a8be91}
+.sales-trend-legend i.collected,.sales-trend-bars .collected,.sales-collection-legend i.collected{background:#527a65}
+.sales-trend-chart{display:grid;min-height:174px;grid-auto-columns:minmax(30px,1fr);grid-auto-flow:column;align-items:stretch;gap:5px;overflow-x:auto;padding:5px 2px 0;border-bottom:1px solid #e8ede7}
+.sales-trend-column{display:grid;min-width:30px;grid-template-rows:minmax(110px,1fr) 25px;align-items:end;gap:7px;text-align:center}
+.sales-trend-bars{display:flex;height:100%;align-items:flex-end;justify-content:center;gap:3px;border-bottom:1px solid #edf0ec}
+.sales-trend-bars span{width:min(35%,18px);min-height:0;border-radius:4px 4px 0 0;transition:height .2s ease}
+.sales-trend-column small{overflow:hidden;color:#7c887f;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.sales-collection-track{display:flex;width:100%;height:18px;overflow:hidden;border-radius:10px;background:#f0f2ee}
+.sales-collection-track .collected{background:#527a65}.sales-collection-track .outstanding{background:#cf897c}
+.sales-collection-legend{display:grid;gap:10px;margin-top:17px}
+.sales-collection-legend>div{display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:center;gap:8px;color:#68756c;font-size:9px}
+.sales-collection-legend i.outstanding{background:#cf897c}.sales-collection-legend i.received-period{background:#a8be91}
+.sales-collection-legend strong{color:#334137;font-size:10px}
+.sales-status-chart{display:grid;gap:13px;padding:7px 0}
+.sales-status-row{display:grid;grid-template-columns:minmax(75px,100px) minmax(40px,1fr) 24px;align-items:center;gap:9px;color:#68756c;font-size:9px}
+.sales-status-row>div{height:10px;overflow:hidden;border-radius:8px;background:#f0f2ee}
+.sales-status-row>div i{display:block;height:100%;min-width:0;border-radius:inherit}
+.sales-status-row strong{color:#334137;font-size:10px;text-align:right}
 .sales-analysis-note{padding:0 3px}
 @media(max-width:900px){.sales-analysis-filters{grid-template-columns:1fr 1fr}.sales-analysis-range{grid-column:1/-1;text-align:left}.sales-metrics-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.sales-chart-content{grid-template-columns:190px 1fr}.sales-chart-legend{grid-template-columns:1fr}}
-@media(max-width:600px){.order-cost-form{align-items:stretch;flex-wrap:wrap}.order-cost-form label{width:100%}.sales-analysis-filters{grid-template-columns:1fr;padding:14px}.sales-analysis-range{grid-column:auto}.sales-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sales-metrics-grid article{min-height:108px;padding:12px}.sales-chart-panel{padding:15px}.sales-chart-heading{align-items:flex-start;flex-direction:column}.sales-chart-content{grid-template-columns:1fr}.sales-pie-chart{width:min(75vw,220px)}.sales-chart-legend{grid-template-columns:1fr}}
+@media(max-width:600px){.order-cost-form{align-items:stretch;flex-wrap:wrap}.order-cost-form label{width:100%}.sales-analysis-filters{grid-template-columns:1fr;padding:14px}.sales-analysis-range{grid-column:auto}.sales-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sales-metrics-grid article{min-height:108px;padding:12px}.sales-chart-panel{padding:15px}.sales-chart-heading{align-items:flex-start;flex-direction:column}.sales-chart-content{grid-template-columns:1fr}.sales-pie-chart{width:min(75vw,220px)}.sales-chart-legend{grid-template-columns:1fr}.sales-additional-graphs{grid-template-columns:1fr}.sales-additional-graphs>.sales-chart-panel:first-child{grid-column:auto}.sales-status-row{grid-template-columns:78px minmax(40px,1fr) 22px}}
 html,body{overflow-x:clip}
 @media(max-width:600px){.footer-compliance-banner{padding:16px 10px;font-size:10px;line-height:1.65}}
 .bank-settings-panel{margin:0 0 26px}
