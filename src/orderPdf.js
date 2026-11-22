@@ -377,6 +377,8 @@ export function createPaymentReceiptPdf({ profile, order, payment, generatedAt =
   const paymentReference = payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId || '-'
   const receivedAmount = Number(payment.transactionAmount ?? payment.amount ?? 0)
   const appliedAmount = Number(payment.amountApplied ?? payment.amount ?? 0)
+  const chargeAmount = Number(payment.chargeAmount || 0)
+  const chargeSummary = (payment.chargeBreakdown || []).map(item => `${item.reason}: ${money(item.amount)}`).join('; ') || 'None'
   const qrPayload = [
     'GOURI AGENCY PAYMENT RECEIPT',
     `Receipt:${payment.id || paymentReference}`,
@@ -384,6 +386,7 @@ export function createPaymentReceiptPdf({ profile, order, payment, generatedAt =
     `GSTIN:${profile.gstNumber || order.gstNumber || '-'}`,
     `Ref:${paymentReference}`,
     `Received:INR ${receivedAmount.toFixed(2)}`,
+    `Charges:INR ${chargeAmount.toFixed(2)}`,
     `Credited:INR ${appliedAmount.toFixed(2)}`,
     `Date:${dateTime(payment.paidAt || payment.reviewedAt || payment.submittedAt)} IST`
   ].join('|')
@@ -432,15 +435,18 @@ export function createPaymentReceiptPdf({ profile, order, payment, generatedAt =
   const carryText = carryForward.length
     ? `Applied to ${order.id}: ${money(appliedAmount)}. Carried forward: ${carryForward.map(allocation => `${allocation.orderId} ${money(allocation.amount)}`).join('; ')}`
     : `Applied to ${order.id}: ${money(appliedAmount)}.`
-  field('Bill credit allocation', carryText, 489)
-  fill(M, 542, W - M * 2, 103, [0.95, 0.965, 0.94])
-  text(M + 14, 558, 'TRANSACTION AMOUNT RECEIVED', 7, 'F2', MUTED)
-  text(M + 14, 576, money(payment.transactionAmount ?? payment.amount), 19, 'F2', GREEN)
-  rule(606, [0.82, 0.86, 0.81])
-  text(M + 14, 620, `Order billed: ${money(due)}`, 8, 'F1', INK)
-  text(M + 190, 620, `Total paid: ${money(paid)}`, 8, 'F1', INK)
-  text(M + 365, 620, `Balance: ${money(Math.max(0, due - paid))}`, 8, 'F2', INK)
-  text(M, 670, `Generated ${dateTime(generatedAt)} IST`, 8, 'F1', MUTED)
-  text(M, 693, 'This receipt confirms the payment recorded above. It is not a tax invoice.', 8, 'F1', MUTED)
+  field('Additional charges', `${chargeSummary}  |  Total charges: ${money(chargeAmount)}`, 489)
+  field('Bill credit allocation', carryText, 534)
+  fill(M, 588, W - M * 2, 124, [0.95, 0.965, 0.94])
+  text(M + 14, 601, 'TOTAL TRANSACTION AMOUNT RECEIVED', 7, 'F2', MUTED)
+  text(M + 14, 619, money(receivedAmount), 19, 'F2', GREEN)
+  text(M + 14, 650, `Amount before charges: ${money(payment.amount)}`, 8, 'F1', INK)
+  text(M + 245, 650, `Additional charges: ${money(chargeAmount)}`, 8, 'F1', INK)
+  rule(667, [0.82, 0.86, 0.81])
+  text(M + 14, 681, `Order billed: ${money(due)}`, 8, 'F1', INK)
+  text(M + 190, 681, `Total paid: ${money(paid)}`, 8, 'F1', INK)
+  text(M + 365, 681, `Balance: ${money(Math.max(0, due - paid))}`, 8, 'F2', INK)
+  text(M, 737, `Generated ${dateTime(generatedAt)} IST`, 8, 'F1', MUTED)
+  text(M, 760, 'This receipt confirms the payment recorded above. It is not a tax invoice.', 8, 'F1', MUTED)
   return documentBlob([page])
 }

@@ -241,6 +241,13 @@ function normalizePaymentSettings(settings) {
   const reminders = settings?.dueReminders || {}
   const orderIntake = settings?.orderIntake || {}
   const promo = settings?.promoCode || {}
+  const paymentCharges = settings?.paymentCharges || {}
+  const chargeRows = Array.isArray(paymentCharges.items) ? paymentCharges.items.slice(0, 100).map(item => {
+    const reason = typeof item?.reason === 'string' ? item.reason.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) : ''
+    const value = Number(item?.value)
+    if (!reason || !Number.isFinite(value) || value <= 0) return null
+    return { id: typeof item.id === 'string' && /^[a-f0-9-]{36}$/i.test(item.id) ? item.id.toLowerCase() : randomUUID(), reason, type: item.type === 'fixed' ? 'fixed' : 'percent', value: Math.min(value, item.type === 'fixed' ? 1000000000 : 100) }
+  }).filter(Boolean) : []
   const intervalDays = Number(reminders.intervalDays)
   const promoDiscountValue = Number(promo.discountValue)
   const closedMessage = typeof orderIntake.message === 'string' ? orderIntake.message.trim().slice(0, 300) : ''
@@ -262,8 +269,56 @@ function normalizePaymentSettings(settings) {
       emoji: typeof promo.emoji === 'string' ? promo.emoji.slice(0, 12) : '🎉',
       startsAt: normalizePromoDate(promo.startsAt),
       endsAt: normalizePromoDate(promo.endsAt)
+    },
+    paymentCharges: {
+      enabled: paymentCharges.enabled === true,
+      scheduleEnabled: paymentCharges.scheduleEnabled === true,
+      startsAt: normalizePromoDate(paymentCharges.startsAt),
+      endsAt: normalizePromoDate(paymentCharges.endsAt),
+      items: chargeRows
     }
   }
+}
+function getActivePaymentCharges(now = Date.now()) {
+  const settings = paymentSettings.paymentCharges
+  if (!settings?.enabled || !settings.items?.length) return []
+  if (settings.scheduleEnabled) {
+    const start = Date.parse(settings.startsAt || '')
+    const end = Date.parse(settings.endsAt || '')
+    if (!Number.isFinite(start) || !Number.isFinite(end) || now < start || now >= end) return []
+  }
+  return settings.items.map(({ id, reason, type, value }) => ({ id, reason, type, value }))
+}
+function calculatePaymentChargeBreakdown(baseAmount, chargeRules = getActivePaymentCharges()) {
+  const base = Math.max(0, Number(baseAmount) || 0)
+  if (base <= 0) return []
+  return chargeRules.map(rule => {
+    const rawAmount = rule.type === 'fixed' ? Number(rule.value) : base * Number(rule.value) / 100
+    return { id: rule.id, reason: rule.reason, type: rule.type, value: Number(rule.value), amount: Math.round((rawAmount + Number.EPSILON) * 100) / 100 }
+  }).filter(item => item.amount > 0)
+}
+function paymentChargeTotal(breakdown = []) {
+  return Math.round(breakdown.reduce((sum, item) => sum + Number(item.amount || 0), 0) * 100) / 100
+}
+function allocatePaymentCharges(allocations, chargeBreakdown, baseTotal) {
+  const totalCents = Math.round(Number(baseTotal || 0) * 100)
+  const totalsByAllocation = allocations.map(() => [])
+  for (const charge of chargeBreakdown) {
+    const chargeCents = Math.round(Number(charge.amount || 0) * 100)
+    let assigned = 0
+    allocations.forEach((allocation, index) => {
+      const share = index === allocations.length - 1
+        ? chargeCents - assigned
+        : totalCents > 0 ? Math.round(chargeCents * Math.round(Number(allocation.amount || 0) * 100) / totalCents) : 0
+      assigned += share
+      if (share > 0) totalsByAllocation[index].push({ ...charge, amount: share / 100 })
+    })
+  }
+  return totalsByAllocation.map((breakdown, index) => ({
+    chargeBreakdown: breakdown,
+    chargeAmount: paymentChargeTotal(breakdown),
+    transactionAmount: Math.round((Number(allocations[index].amount || 0) + paymentChargeTotal(breakdown)) * 100) / 100
+  }))
 }
 const portalStateFile = new URL('./.portal-state.json', import.meta.url)
 const orderIdSequenceFile = new URL('./.order-id-sequence', import.meta.url)
@@ -615,7 +670,13 @@ function paymentRefundedForOrder(payment, orderId) {
   if (payment?.provider === 'Account credit') return Number(payment.amountRefunded || 0)
   const processed = (payment?.refunds || []).filter(refund => refund.status === 'processed')
   if (!processed.some(refund => refund.allocationOrderId)) return Number(payment?.amountRefunded || 0)
-  return processed.reduce((sum, refund) => sum + (!refund.allocationOrderId || refund.allocationOrderId === orderId ? Number(refund.amount || 0) : 0), 0)
+  return processed.reduce((sum, refund) => sum + (!refund.allocationOrderId || refund.allocationOrderId === orderId ? Number(refund.billCreditAmount ?? refund.amount ?? 0) : 0), 0)
+}
+function paymentChargeAmountForOrder(payment, orderId) {
+  return Math.round(((payment?.chargeAllocations || []).filter(row => row.orderId === orderId).reduce((sum, row) => sum + Number(row.amount || 0), 0) + Number.EPSILON) * 100) / 100
+}
+function paymentChargesRefundedForOrder(payment, orderId) {
+  return Math.round(((payment?.refunds || []).filter(refund => refund.allocationOrderId === orderId && ['processed', 'pending', 'initiating'].includes(refund.status)).reduce((sum, refund) => sum + Math.max(0, Number(refund.amount || 0) - Number(refund.billCreditAmount ?? refund.amount ?? 0)), 0) + Number.EPSILON) * 100) / 100
 }
 function confirmedOrderPaymentAmount(payment, orderId) {
   return Math.max(0, Number(payment?.amountApplied ?? payment?.amount ?? 0) - paymentRefundedForOrder(payment, orderId))
@@ -687,6 +748,10 @@ function applyConfirmedPaymentAllocation(order, payment) {
     }
   }
   refreshPaymentAllocationSummary(payment)
+  if (payment.chargeBreakdown?.length && payment.allocations?.length) {
+    const chargeParts = allocatePaymentCharges(payment.allocations, payment.chargeBreakdown, transactionAmount)
+    payment.chargeAllocations = payment.allocations.map((allocation, index) => ({ orderId: allocation.orderId, amount: chargeParts[index].chargeAmount, breakdown: chargeParts[index].chargeBreakdown }))
+  }
   payment.unallocatedAmount = Math.max(0, Math.round(remaining * 100) / 100)
   payment.allocationFinalizedAt = new Date().toISOString()
   recomputeOrderPaidAmount(order)
@@ -780,7 +845,7 @@ function updateCashfreeRefundRecord(payment, providerRefund, existing = {}) {
   if (!payment.refunds.includes(refund)) payment.refunds.push(refund)
   return refund
 }
-async function initiateCashfreeRefund(order, payment, { amount = null, reason = 'Client order cancellation', allocationOrderId = '' } = {}) {
+async function initiateCashfreeRefund(order, payment, { amount = null, reason = 'Client order cancellation', allocationOrderId = '', billCreditAmount = null } = {}) {
   if (payment.provider !== 'Cashfree' || !payment.cashfreeOrderId || !payment.cashfreePaymentId) throw new Error('Only a confirmed Cashfree payment can be refunded automatically.')
   const lockKey = `${order.id}/${payment.id}`
   if (razorpayRefundsInProgress.has(lockKey)) return { status: payment.refundStatus || 'pending', duplicate: true }
@@ -788,7 +853,7 @@ async function initiateCashfreeRefund(order, payment, { amount = null, reason = 
   try {
     const providerPayments = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/payments`)
     const providerPayment = (Array.isArray(providerPayments) ? providerPayments : providerPayments.payments || []).find(item => String(item.cf_payment_id) === String(payment.cashfreePaymentId))
-    const expectedProviderAmount = Number(payment.batchTotalAmount || payment.amount || 0)
+    const expectedProviderAmount = Number(payment.batchTotalAmount || payment.transactionAmount || payment.amount || 0)
     if (!providerPayment || providerPayment.payment_status !== 'SUCCESS' || providerPayment.payment_currency !== 'INR' || Math.abs(Number(providerPayment.payment_amount) - expectedProviderAmount) >= 0.005) throw new Error('Cashfree has not confirmed the exact INR payment amount, so it cannot be refunded yet.')
     const providerRefunds = []
     for (const local of payment.refunds || []) {
@@ -805,11 +870,11 @@ async function initiateCashfreeRefund(order, payment, { amount = null, reason = 
     }
     updateRefundTotals(order, payment)
     const pendingAmount = (payment.refunds || []).filter(refund => ['pending', 'initiating'].includes(refund.status)).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
-    const refundable = Math.max(0, Number(payment.amount || 0) - Number(payment.amountRefunded || 0) - pendingAmount)
+    const refundable = Math.max(0, Number(payment.transactionAmount ?? payment.amount ?? 0) - Number(payment.amountRefunded || 0) - pendingAmount)
     const refundAmount = amount === null ? refundable : Math.min(refundable, Math.max(0, Number(amount)))
     if (refundAmount < 0.01) return { status: payment.refundStatus || 'processed', duplicate: true }
     const refund = { id: `GA${String(order.id).replace(/[^A-Za-z0-9]/g, '')}${randomUUID().replace(/-/g, '').slice(0, 10)}`.slice(0, 40) }
-    Object.assign(refund, { amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason: String(reason).slice(0, 100), ...(allocationOrderId ? { allocationOrderId } : {}), createdAt: refund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
+    Object.assign(refund, { amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason: String(reason).slice(0, 100), ...(allocationOrderId ? { allocationOrderId } : {}), ...(billCreditAmount !== null ? { billCreditAmount: Math.round(Number(billCreditAmount) * 100) / 100 } : {}), createdAt: refund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
     payment.refunds ||= []
     if (!payment.refunds.includes(refund)) payment.refunds.push(refund)
     updateRefundTotals(order, payment)
@@ -1165,7 +1230,7 @@ function queuePaymentConfirmationEmail(profile, order, payment, ledger, receipt)
       title: 'Payment confirmation', greeting: customerName,
       introduction: `A payment for order ${order.id} has been recorded in your Gouri Agency account.`,
       sections: [
-        { title: 'Payment details', fields: [['Order number', order.id], ['Transaction amount received', formatINR(payment.amount)], ['Applied to this order', formatINR(payment.amountApplied ?? payment.amount)], ['Carried to other open bills', (payment.allocations || []).filter(row => row.role === 'carry-forward').map(row => `${row.orderId}: ${formatINR(row.amount)}`).join('; ') || 'None'], ['Payment method', payment.provider || 'Payment'], ['Transaction reference', payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId || '—'], ['Payment date and time', emailTimestamp(payment.paidAt || payment.reviewedAt)] ] },
+        { title: 'Payment details', fields: [['Order number', order.id], ['Amount before charges', formatINR(payment.amount)], ['Charges', (payment.chargeBreakdown || []).map(item => `${item.reason}: ${formatINR(item.amount)}`).join('; ') || 'None'], ['Transaction amount received', formatINR(payment.transactionAmount ?? payment.amount)], ['Applied to this order', formatINR(payment.amountApplied ?? payment.amount)], ['Carried to other open bills', (payment.allocations || []).filter(row => row.role === 'carry-forward').map(row => `${row.orderId}: ${formatINR(row.amount)}`).join('; ') || 'None'], ['Payment method', payment.provider || 'Payment'], ['Transaction reference', payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId || '—'], ['Payment date and time', emailTimestamp(payment.paidAt || payment.reviewedAt)] ] },
         { title: 'Updated order balance', fields: [['Total order due', formatINR(order.amountDue)], ['Total paid', formatINR(order.amountPaid)], ['Outstanding balance', formatINR(balance)], ['Last payment date and time', emailTimestamp(order.lastPaymentAt || payment.paidAt)] ] }
       ],
       attachmentNote: 'Attached are your payment receipt and updated order/customer profile PDF. These documents are also available from your client portal.'
@@ -1374,10 +1439,12 @@ async function performOrderCancellation(order, cancelledBy) {
     if (result.manualReview > 0.005) refundErrors.push(`${formatINR(result.manualReview)} account credit needs agency review.`)
   }
   for (const payment of (order.payments || []).filter(row => isGatewayPayment(row) && row.status === 'Paid' && (row.razorpayPaymentId || row.cashfreePaymentId))) {
-    const pendingForOrder = (payment.refunds || []).filter(refund => ['pending', 'initiating'].includes(refund.status) && (!refund.allocationOrderId || refund.allocationOrderId === order.id)).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
+    const pendingForOrder = (payment.refunds || []).filter(refund => ['pending', 'initiating'].includes(refund.status) && (!refund.allocationOrderId || refund.allocationOrderId === order.id)).reduce((sum, refund) => sum + Number(refund.billCreditAmount ?? refund.amount ?? 0), 0)
     const sourcePaid = Math.max(0, Number(payment.amountApplied ?? payment.amount ?? 0) - paymentRefundedForOrder(payment, order.id) - pendingForOrder)
-    if (sourcePaid < 0.01) continue
-    try { await initiateOnlineRefund(order, payment, { amount: sourcePaid, allocationOrderId: order.id, reason: `${cancelledBy} cancelled order ${order.id}`, suffix: 'cancel' }) }
+    const chargeRefund = Math.max(0, paymentChargeAmountForOrder(payment, order.id) - paymentChargesRefundedForOrder(payment, order.id))
+    const requestedRefund = Math.round((sourcePaid + chargeRefund) * 100) / 100
+    if (requestedRefund < 0.01) continue
+    try { await initiateOnlineRefund(order, payment, { amount: requestedRefund, billCreditAmount: sourcePaid, allocationOrderId: order.id, reason: `${cancelledBy} cancelled order ${order.id}`, suffix: 'cancel' }) }
     catch (error) { payment.refundStatus = 'failed'; payment.refundFailureReason = String(error.message || `${gatewayDisplayName(payment)} refund could not be started.`).slice(0, 300); refundErrors.push(payment.refundFailureReason) }
   }
   recomputeOrderPaidAmount(order)
@@ -1412,7 +1479,7 @@ function updateRefundTotals(order, payment) {
   payment.amountRefunded = Math.round(payment.refunds.filter(refund => refund.status === 'processed').reduce((sum, refund) => sum + Number(refund.amount || 0), 0) * 100) / 100
   const hasPending = payment.refunds.some(refund => ['pending', 'initiating'].includes(refund.status))
   const hasFailed = payment.refunds.some(refund => refund.status === 'failed')
-  payment.refundStatus = hasPending ? 'pending' : payment.amountRefunded >= Number(payment.amount || 0) - 0.005 ? 'processed' : hasFailed ? 'failed' : payment.amountRefunded > 0 ? 'partially_refunded' : ''
+  payment.refundStatus = hasPending ? 'pending' : payment.amountRefunded >= Number(payment.transactionAmount ?? payment.amount ?? 0) - 0.005 ? 'processed' : hasFailed ? 'failed' : payment.amountRefunded > 0 ? 'partially_refunded' : ''
   recomputeOrderPaidAmount(order)
   for (const refund of payment.refunds) {
     if (!refund.allocationOrderId) continue
@@ -1434,7 +1501,7 @@ function updateRefundTotals(order, payment) {
   const profile = [...profilesByGst.values()].find(item => item.id === order.profileId)
   if (profile?.latestLedgerPdf) profile.latestLedgerPdf.templateVersion = 0
 }
-async function initiateRazorpayRefund(order, payment, { amount = null, reason = 'Client order cancellation', suffix = 'cancel', allocationOrderId = '' } = {}) {
+async function initiateRazorpayRefund(order, payment, { amount = null, reason = 'Client order cancellation', suffix = 'cancel', allocationOrderId = '', billCreditAmount = null } = {}) {
   if (payment.provider !== 'Razorpay' || !payment.razorpayPaymentId) throw new Error('Only a captured Razorpay payment can be refunded automatically.')
   const lockKey = `${order.id}/${payment.id}`
   if (razorpayRefundsInProgress.has(lockKey)) return { status: payment.refundStatus || 'pending', duplicate: true }
@@ -1455,7 +1522,7 @@ async function initiateRazorpayRefund(order, payment, { amount = null, reason = 
     }
     updateRefundTotals(order, payment)
     const pendingAmount = payment.refunds.filter(refund => ['pending', 'initiating'].includes(refund.status)).reduce((sum, refund) => sum + Number(refund.amount || 0), 0)
-    const refundable = Math.max(0, Number(payment.amount || 0) - Number(payment.amountRefunded || 0) - pendingAmount)
+    const refundable = Math.max(0, Number(payment.transactionAmount ?? payment.amount ?? 0) - Number(payment.amountRefunded || 0) - pendingAmount)
     const refundAmount = amount === null ? refundable : Math.min(refundable, Math.max(0, Number(amount)))
     if (refundAmount < 0.01) return { status: payment.refundStatus || 'processed', duplicate: true }
     const receipt = `GA-${order.id}-${payment.id}-${suffix}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40)
@@ -1467,7 +1534,7 @@ async function initiateRazorpayRefund(order, payment, { amount = null, reason = 
     if (!refund) {
       const local = payment.refunds.find(item => item.receipt === receipt)
       if (local && local.status === 'failed') payment.refunds.splice(payment.refunds.indexOf(local), 1)
-      const pending = { receipt, amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason, ...(allocationOrderId ? { allocationOrderId } : {}), createdAt: new Date().toISOString() }
+      const pending = { receipt, amount: Math.round(refundAmount * 100) / 100, status: 'initiating', reason, ...(allocationOrderId ? { allocationOrderId } : {}), ...(billCreditAmount !== null ? { billCreditAmount: Math.round(Number(billCreditAmount) * 100) / 100 } : {}), createdAt: new Date().toISOString() }
       payment.refunds.push(pending)
       updateRefundTotals(order, payment)
       persistPortalState()
@@ -1486,7 +1553,7 @@ async function initiateRazorpayRefund(order, payment, { amount = null, reason = 
     }
     payment.refunds ||= []
     const localRefund = payment.refunds.find(item => item.id === refund.id || item.receipt === receipt) || {}
-    Object.assign(localRefund, { id: refund.id || localRefund.id, receipt: refund.receipt || receipt, amount: Number(refund.amount || Math.round(refundAmount * 100)) / 100, status: refund.status || 'pending', reason, ...(allocationOrderId ? { allocationOrderId } : {}), createdAt: localRefund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
+    Object.assign(localRefund, { id: refund.id || localRefund.id, receipt: refund.receipt || receipt, amount: Number(refund.amount || Math.round(refundAmount * 100)) / 100, status: refund.status || 'pending', reason, ...(allocationOrderId ? { allocationOrderId } : {}), ...(billCreditAmount !== null ? { billCreditAmount: Math.round(Number(billCreditAmount) * 100) / 100 } : {}), createdAt: localRefund.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() })
     if (!payment.refunds.includes(localRefund)) payment.refunds.push(localRefund)
     updateRefundTotals(order, payment)
     if (payment.refundStatus !== 'failed') delete payment.refundFailureReason
@@ -1514,7 +1581,8 @@ async function reconcileRazorpayPayment(order, payment) {
   if (!RAZORPAY_CONFIGURED || !payment?.razorpayOrderId) return { status: payment?.status || 'unknown' }
   const collection = await razorpayRequest(`orders/${encodeURIComponent(payment.razorpayOrderId)}/payments?count=100`)
   const providerPayments = Array.isArray(collection.items) ? collection.items : []
-  const validForAmount = providerPayments.filter(item => Number(item.amount) === Math.round(Number(payment.amount || 0) * 100) && item.currency === 'INR')
+  const expectedTransactionAmount = Number(payment.transactionAmount ?? payment.amount ?? 0)
+  const validForAmount = providerPayments.filter(item => Number(item.amount) === Math.round(expectedTransactionAmount * 100) && item.currency === 'INR')
   let captured = validForAmount.find(item => item.status === 'captured' || item.captured === true)
   if (!captured) {
     const authorized = validForAmount.filter(item => item.status === 'authorized').sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))[0]
@@ -1527,7 +1595,7 @@ async function reconcileRazorpayPayment(order, payment) {
     }
   }
   if (captured) {
-    if (Number(captured.amount) !== Math.round(Number(payment.amount || 0) * 100) || captured.currency !== 'INR') {
+    if (Number(captured.amount) !== Math.round(expectedTransactionAmount * 100) || captured.currency !== 'INR') {
       payment.reconciliationError = 'Captured Razorpay amount or currency does not match the portal checkout.'
       persistPortalState()
       return { status: 'mismatch', payment }
@@ -1635,7 +1703,8 @@ async function reconcileCashfreePayment(order, payment) {
   if (!CASHFREE_CONFIGURED || !payment?.cashfreeOrderId) return { status: payment?.status || 'unknown', payment }
   const response = await cashfreeRequest(`orders/${encodeURIComponent(payment.cashfreeOrderId)}/payments`)
   const providerPayments = Array.isArray(response) ? response : Array.isArray(response.payments) ? response.payments : []
-  const validPayments = providerPayments.filter(item => Math.abs(Number(item.payment_amount) - Number(payment.amount || 0)) < 0.005 && item.payment_currency === 'INR')
+  const expectedTransactionAmount = Number(payment.transactionAmount ?? payment.amount ?? 0)
+  const validPayments = providerPayments.filter(item => Math.abs(Number(item.payment_amount) - expectedTransactionAmount) < 0.005 && item.payment_currency === 'INR')
   const successful = validPayments.filter(item => String(item.payment_status || '').toUpperCase() === 'SUCCESS').sort((a, b) => Date.parse(b.payment_time || '') - Date.parse(a.payment_time || ''))[0]
   const mismatchedSuccess = !successful && providerPayments.find(item => String(item.payment_status || '').toUpperCase() === 'SUCCESS')
   if (mismatchedSuccess) {
@@ -2430,7 +2499,7 @@ const server = http.createServer(async (req, res) => {
       const payment = (order.payments || []).find(item => item.razorpayOrderId === entity.order_id)
       if (payment?.batchId) {
         await reconcilePaymentBatch(payment.batchId, 'Razorpay')
-      } else if (!payment || Math.round(Number(payment.amount) * 100) !== Number(entity.amount) || entity.currency !== 'INR') {
+      } else if (!payment || Math.round(Number(payment.transactionAmount ?? payment.amount) * 100) !== Number(entity.amount) || entity.currency !== 'INR') {
         return json(res, 409, { error: 'Captured payment amount or currency does not match the portal checkout.' })
       } else {
         await finalizeConfirmedPayment(order, payment, { status: 'Paid', reference: entity.id, razorpayPaymentId: entity.id })
@@ -2448,7 +2517,7 @@ const server = http.createServer(async (req, res) => {
       const payment = (order.payments || []).find(item => item.razorpayOrderId === entity.order_id)
       if (payment?.batchId) await reconcilePaymentBatch(payment.batchId, 'Razorpay')
       else {
-        if (!payment || Math.round(Number(payment.amount) * 100) !== Number(entity.amount) || entity.currency !== 'INR') return json(res, 409, { error: 'Failed payment amount or currency does not match the portal checkout.' })
+        if (!payment || Math.round(Number(payment.transactionAmount ?? payment.amount) * 100) !== Number(entity.amount) || entity.currency !== 'INR') return json(res, 409, { error: 'Failed payment amount or currency does not match the portal checkout.' })
         await markRazorpayPaymentFailed(order, payment, entity, entity.error_description || entity.error_reason || '')
       }
     } else if (['refund.processed', 'refund.failed', 'refund.created', 'refund.updated'].includes(event.event)) {
@@ -2644,7 +2713,7 @@ const server = http.createServer(async (req, res) => {
     const clientOrders = profileId ? orders.filter(order => order.profileId === profileId) : []
     const profile = profileId ? [...profilesByGst.values()].find(item => item.id === profileId) || null : null
     const promoCode = isPromoCodeLive(paymentSettings.promoCode) ? paymentSettings.promoCode : null
-    return json(res, 200, { orders: clientOrders.map(clientOrderForDashboard), profile: dashboardProfile(profile), razorpayKeyId: RAZORPAY_CONFIGURED ? RAZORPAY_KEY_ID : '', cashfreeEnabled: CASHFREE_CONFIGURED, cashfreeEnvironment: CASHFREE_ENVIRONMENT, bankTransferDetails: paymentSettings.bankTransfer, promoCode })
+    return json(res, 200, { orders: clientOrders.map(clientOrderForDashboard), profile: dashboardProfile(profile), razorpayKeyId: RAZORPAY_CONFIGURED ? RAZORPAY_KEY_ID : '', cashfreeEnabled: CASHFREE_CONFIGURED, cashfreeEnvironment: CASHFREE_ENVIRONMENT, bankTransferDetails: paymentSettings.bankTransfer, promoCode, paymentCharges: getActivePaymentCharges() })
   }
   if (req.method === 'POST' && url.pathname.startsWith('/api/client/orders/') && url.pathname.endsWith('/promo')) {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
@@ -2748,7 +2817,11 @@ const server = http.createServer(async (req, res) => {
       return { order, amount: Math.round(amount * 100) / 100 }
     })
     if (allocations.some(({ order, amount }) => order.status === 'Cancelled' || amount <= 0)) return json(res, 409, { error: 'Every selected order must be active and have an unpaid balance available for payment. Refresh the list and select again.' })
-    const totalAmount = Math.round(allocations.reduce((sum, item) => sum + item.amount, 0) * 100) / 100
+    const baseAmount = Math.round(allocations.reduce((sum, item) => sum + item.amount, 0) * 100) / 100
+    const chargeBreakdown = calculatePaymentChargeBreakdown(baseAmount)
+    const chargeAmount = paymentChargeTotal(chargeBreakdown)
+    const totalAmount = Math.round((baseAmount + chargeAmount) * 100) / 100
+    const chargeAllocations = allocatePaymentCharges(allocations, chargeBreakdown, baseAmount)
     const amountPaise = Math.round(totalAmount * 100)
     if (amountPaise < 100) return json(res, 400, { error: 'Combined online payments must total at least INR 1.00.' })
     const profile = [...profilesByGst.values()].find(item => item.id === profileId)
@@ -2794,10 +2867,11 @@ const server = http.createServer(async (req, res) => {
         if (!cashfreeOrder.payment_session_id || !cashfreeOrder.order_id) throw new Error('Cashfree did not return a valid combined payment session.')
         checkoutDetails = { cashfreeOrderId: String(cashfreeOrder.order_id), paymentSessionId: String(cashfreeOrder.payment_session_id), environment: CASHFREE_ENVIRONMENT }
       }
-      for (const { order, amount } of allocations) {
+      for (const [{ order, amount }, charges] of allocations.map((allocation, index) => [allocation, chargeAllocations[index]])) {
         const payment = {
           id: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`,
           amount,
+          ...charges,
           batchId,
           batchTotalAmount: totalAmount,
           batchOrderIds: requestedIds,
@@ -2816,6 +2890,9 @@ const server = http.createServer(async (req, res) => {
         batchId,
         provider,
         amount: totalAmount,
+        baseAmount,
+        chargeAmount,
+        chargeBreakdown,
         amountPaise,
         currency: 'INR',
         orders: allocations.map(({ order }) => clientOrderForDashboard(order)),
@@ -2860,6 +2937,10 @@ const server = http.createServer(async (req, res) => {
     const amount = Number(body.amount)
     const availableDue = profileAvailableBalance(profileId)
     if (!Number.isFinite(amount) || Math.round(amount * 100) < 100 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter a Cashfree payment amount of at least ₹1 and no more than this profile’s total outstanding balance.' })
+    const baseAmount = Math.round(amount * 100) / 100
+    const chargeBreakdown = calculatePaymentChargeBreakdown(baseAmount)
+    const chargeAmount = paymentChargeTotal(chargeBreakdown)
+    const transactionAmount = Math.round((baseAmount + chargeAmount) * 100) / 100
     const profile = [...profilesByGst.values()].find(item => item.id === profileId)
     const customerPhone = String(profile?.mobile || order.mobile || '').replace(/\D/g, '').slice(-10)
     if (!/^\d{10}$/.test(customerPhone)) return json(res, 400, { error: 'A valid 10-digit registered mobile number is required for Cashfree checkout. Update the profile and retry.' })
@@ -2873,7 +2954,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const cashfreeOrder = await cashfreeRequest('orders', { method: 'POST', body: {
         order_id: cashfreeOrderId,
-        order_amount: Math.round(amount * 100) / 100,
+        order_amount: transactionAmount,
         order_currency: 'INR',
         customer_details: {
           customer_id: String(profile?.id || order.profileId || 'client').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 50),
@@ -2891,7 +2972,10 @@ const server = http.createServer(async (req, res) => {
       if (!cashfreeOrder.payment_session_id || !cashfreeOrder.order_id) throw new Error('Cashfree did not return a valid payment session.')
       const payment = {
         id: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`,
-        amount: Math.round(amount * 100) / 100,
+        amount: baseAmount,
+        transactionAmount,
+        chargeAmount,
+        chargeBreakdown,
         reference: 'Cashfree checkout started',
         provider: 'Cashfree',
         status: 'Awaiting Cashfree payment',
@@ -2903,7 +2987,7 @@ const server = http.createServer(async (req, res) => {
       order.payments ||= []
       order.payments.unshift(payment)
       persistPortalState()
-      return json(res, 201, { order: clientOrderForDashboard(order), paymentSessionId: payment.cashfreePaymentSessionId, cashfreeOrderId: payment.cashfreeOrderId, environment: CASHFREE_ENVIRONMENT })
+      return json(res, 201, { order: clientOrderForDashboard(order), payment, baseAmount, chargeAmount, transactionAmount, chargeBreakdown, paymentSessionId: payment.cashfreePaymentSessionId, cashfreeOrderId: payment.cashfreeOrderId, environment: CASHFREE_ENVIRONMENT })
     } catch (error) {
       return json(res, 502, { error: error.message || 'Could not start Cashfree checkout.' })
     }
@@ -2943,12 +3027,20 @@ const server = http.createServer(async (req, res) => {
     const amountPaise = Math.round(amount * 100)
     const availableDue = profileAvailableBalance(profileId)
     if (!Number.isFinite(amount) || amountPaise < 100 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter an online payment amount of at least ₹1 and no more than this profile’s total outstanding balance.' })
+    const baseAmount = Math.round(amountPaise) / 100
+    const chargeBreakdown = calculatePaymentChargeBreakdown(baseAmount)
+    const chargeAmount = paymentChargeTotal(chargeBreakdown)
+    const transactionAmount = Math.round((baseAmount + chargeAmount) * 100) / 100
+    const transactionAmountPaise = Math.round(transactionAmount * 100)
     try {
       const receipt = `${order.id}-${randomUUID().replace(/-/g, '').slice(0, 12)}`.slice(0, 40)
-      const razorpayOrder = await razorpayRequest('orders', { method: 'POST', body: { amount: amountPaise, currency: 'INR', receipt, notes: { gouri_order_id: order.id } } })
+      const razorpayOrder = await razorpayRequest('orders', { method: 'POST', body: { amount: transactionAmountPaise, currency: 'INR', receipt, notes: { gouri_order_id: order.id, gouri_base_amount: baseAmount.toFixed(2), gouri_charge_amount: chargeAmount.toFixed(2) } } })
       const payment = {
         id: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`,
-        amount: amountPaise / 100,
+        amount: baseAmount,
+        transactionAmount,
+        chargeAmount,
+        chargeBreakdown,
         reference: 'Razorpay checkout started',
         provider: 'Razorpay',
         status: 'Awaiting Razorpay payment',
@@ -2959,7 +3051,7 @@ const server = http.createServer(async (req, res) => {
       order.payments ||= []
       order.payments.unshift(payment)
       persistPortalState()
-      return json(res, 201, { order: clientOrderForDashboard(order), keyId: RAZORPAY_KEY_ID, amount: amountPaise, currency: 'INR', razorpayOrderId: razorpayOrder.id })
+      return json(res, 201, { order: clientOrderForDashboard(order), payment, keyId: RAZORPAY_KEY_ID, amount: transactionAmountPaise, baseAmount, chargeAmount, transactionAmount, chargeBreakdown, currency: 'INR', razorpayOrderId: razorpayOrder.id })
     } catch (error) {
       return json(res, 502, { error: error.message || 'Could not start Razorpay checkout.' })
     }
@@ -3027,7 +3119,7 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       let providerPayment = await razorpayRequest(`payments/${encodeURIComponent(paymentId)}`)
-      if (providerPayment.order_id !== payment.razorpayOrderId || providerPayment.amount !== Math.round(payment.amount * 100) || providerPayment.currency !== 'INR') {
+      if (providerPayment.order_id !== payment.razorpayOrderId || providerPayment.amount !== Math.round(Number(payment.transactionAmount ?? payment.amount) * 100) || providerPayment.currency !== 'INR') {
         return json(res, 400, { error: 'Razorpay payment details do not match this order.' })
       }
       if (providerPayment.status === 'authorized') {
@@ -3076,11 +3168,15 @@ const server = http.createServer(async (req, res) => {
     if (!Number.isFinite(amount) || amount <= 0 || amount > availableDue + 0.001) return json(res, 400, { error: 'Enter a payment amount up to this profile’s total outstanding balance.' })
     if (!provider) return json(res, 400, { error: 'Choose IMPS, NEFT, or RTGS for the bank transfer.' })
     if (!/^[A-Za-z0-9/-]{6,64}$/.test(reference)) return json(res, 400, { error: 'Enter a payment reference or UTR with 6 to 64 letters or numbers.' })
-    const payment = { id: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`, amount: Math.round(amount * 100) / 100, reference, provider, status: 'Pending verification', submittedAt: new Date().toISOString() }
+    const baseAmount = Math.round(amount * 100) / 100
+    const chargeBreakdown = calculatePaymentChargeBreakdown(baseAmount)
+    const chargeAmount = paymentChargeTotal(chargeBreakdown)
+    const transactionAmount = Math.round((baseAmount + chargeAmount) * 100) / 100
+    const payment = { id: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`, amount: baseAmount, transactionAmount, chargeAmount, chargeBreakdown, reference, provider, status: 'Pending verification', submittedAt: new Date().toISOString() }
     order.payments ||= []
     order.payments.unshift(payment)
     const emailJob = await emailPaymentStateChange(order, 'Bank transfer submitted', [
-      ['Payment status', 'Awaiting agency verification'], ['Amount', formatINR(payment.amount)],
+      ['Payment status', 'Awaiting agency verification'], ['Amount before charges', formatINR(payment.amount)], ['Charges', (payment.chargeBreakdown || []).map(item => `${item.reason}: ${formatINR(item.amount)}`).join('; ') || 'None'], ['Total expected transfer', formatINR(payment.transactionAmount)],
       ['Payment method', provider], ['Transfer reference', reference], ['Submitted at', emailTimestamp(payment.submittedAt)]
     ], `Your bank transfer for order ${order.id} was recorded. The agency will update your balance after confirming the funds.`)
     payment.emailStatus = emailJob.status
@@ -3203,7 +3299,39 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/admin/payment-settings') {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
     if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
-    return json(res, 200, { bankTransferDetails: paymentSettings.bankTransfer, dueReminderSettings: paymentSettings.dueReminders, orderIntakeSettings: paymentSettings.orderIntake, promoCodeSettings: paymentSettings.promoCode })
+    return json(res, 200, { bankTransferDetails: paymentSettings.bankTransfer, dueReminderSettings: paymentSettings.dueReminders, orderIntakeSettings: paymentSettings.orderIntake, promoCodeSettings: paymentSettings.promoCode, paymentChargeSettings: paymentSettings.paymentCharges })
+  }
+  if (req.method === 'GET' && url.pathname === '/api/admin/payment-charge-settings') {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
+    return json(res, 200, { paymentChargeSettings: paymentSettings.paymentCharges })
+  }
+  if (req.method === 'PUT' && url.pathname === '/api/admin/payment-charge-settings') {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
+    const body = await readJson(req, res)
+    if (!body) return
+    const charges = body.paymentChargeSettings || {}
+    if (typeof charges.enabled !== 'boolean' || typeof charges.scheduleEnabled !== 'boolean' || !Array.isArray(charges.items)) return json(res, 400, { error: 'Set the charge switches and provide a list of charge rows.' })
+    const startsAt = typeof charges.startsAt === 'string' ? charges.startsAt.trim() : ''
+    const endsAt = typeof charges.endsAt === 'string' ? charges.endsAt.trim() : ''
+    if (charges.scheduleEnabled && (!startsAt || !endsAt || !Number.isFinite(Date.parse(startsAt)) || !Number.isFinite(Date.parse(endsAt)) || Date.parse(endsAt) <= Date.parse(startsAt))) return json(res, 400, { error: 'For scheduled charges, enter a valid start and end date/time and make the end later than the start.' })
+    if (charges.items.length > 100) return json(res, 400, { error: 'You can add up to 100 charge rows.' })
+    for (const item of charges.items) {
+      const reason = typeof item?.reason === 'string' ? item.reason.trim() : ''
+      const type = item?.type
+      const value = Number(item?.value)
+      if (!reason || reason.length > 100 || !['fixed', 'percent'].includes(type) || !Number.isFinite(value) || value <= 0 || (type === 'percent' && value > 100) || (type === 'fixed' && value > 1000000000)) return json(res, 400, { error: 'Each charge needs a reason, a valid type, and an amount greater than zero (percentage up to 100%).' })
+    }
+    if (charges.enabled && !charges.items.length) return json(res, 400, { error: 'Add at least one charge row before switching charges on.' })
+    const previousSettings = paymentSettings
+    paymentSettings = normalizePaymentSettings({ ...paymentSettings, paymentCharges: { enabled: charges.enabled, scheduleEnabled: charges.scheduleEnabled, startsAt, endsAt, items: charges.items } })
+    try { await persistPortalState() }
+    catch {
+      paymentSettings = previousSettings
+      return json(res, 503, { error: 'MongoDB Atlas could not save the payment charge settings. Please try again.' })
+    }
+    return json(res, 200, { paymentChargeSettings: paymentSettings.paymentCharges })
   }
   if (req.method === 'GET' && url.pathname === '/api/admin/promo-code-settings') {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
@@ -3663,13 +3791,22 @@ const server = http.createServer(async (req, res) => {
     if (order.status !== 'Cancelled' || !isGatewayPayment(payment) || payment.status !== 'Paid' || payment.refundStatus !== 'failed') {
       return json(res, 409, { error: 'Only a failed automatic refund on a cancelled online payment can be retried.' })
     }
+    const failedRefund = [...(payment.refunds || [])].reverse().find(refund => refund.status === 'failed' && (!refund.allocationOrderId || refund.allocationOrderId === order.id))
+    const retryAmount = Number(failedRefund?.amount || 0)
+    if (retryAmount < 0.01) return json(res, 409, { error: 'The failed refund amount could not be found. Review this payment before retrying it.' })
     try {
-      await initiateOnlineRefund(order, payment, { reason: `Admin retry for cancelled order ${order.id}`, suffix: `retry-${Date.now()}` })
+      await initiateOnlineRefund(order, payment, {
+        amount: retryAmount,
+        billCreditAmount: Number(failedRefund.billCreditAmount ?? retryAmount),
+        allocationOrderId: failedRefund.allocationOrderId || order.id,
+        reason: `Admin retry for cancelled order ${order.id}`,
+        suffix: `retry-${Date.now()}`
+      })
     } catch (error) {
       await markRazorpayRefundFailed(order, payment, error, { notify: true })
       return json(res, 502, { error: payment.refundFailureReason, order: orderForDashboard(order), payment })
     }
-    await emailPaymentStateChange(order, 'Refund retry submitted', [['Payment provider', gatewayDisplayName(payment)], ['Payment reference', payment.razorpayPaymentId || payment.cashfreePaymentId], ['Refund status', payment.refundStatus], ['Refunded amount', formatINR(payment.amountRefunded || 0)]], `The agency retried the ${gatewayDisplayName(payment)} refund for order ${order.id}. The updated status is listed below.`)
+    await emailPaymentStateChange(order, 'Refund retry submitted', [['Payment provider', gatewayDisplayName(payment)], ['Payment reference', payment.razorpayPaymentId || payment.cashfreePaymentId], ['Refund status', payment.refundStatus], ['Refund amount submitted', formatINR(retryAmount)], ['Refunded total to date', formatINR(payment.amountRefunded || 0)]], `The agency retried the ${gatewayDisplayName(payment)} refund for order ${order.id}. The updated status is listed below.`)
     return json(res, 200, { order: orderForDashboard(order), payment })
   }
   if (req.method === 'PATCH' && url.pathname.startsWith('/api/orders/') && url.pathname.includes('/payments/')) {

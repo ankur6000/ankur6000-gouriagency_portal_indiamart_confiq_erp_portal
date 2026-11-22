@@ -1188,3 +1188,27 @@ p{line-height:1.7}
 .communication-notice{color:#47714c;font-size:12px;line-height:1.5}.communication-notice.error{color:#b64438}
 @media(max-width:680px){.communication-client-picker,.communication-compose,.communication-thread{padding:15px}.communication-selected-client{align-items:flex-start;flex-direction:column}.communication-message{max-width:100%}.communication-message-heading{flex-direction:column;gap:6px}.communication-compose>.button{width:100%;justify-content:center}}
 @media(max-width:700px){.client-payment-batch{margin:17px 15px 4px;padding:14px}.client-payment-batch-heading{flex-direction:column}.client-payment-batch-footer{align-items:flex-start;flex-direction:column}.client-payment-batch-gateways{width:100%}.client-payment-batch-gateways>.button{flex:1}.payment-success-allocation-list article{grid-template-columns:minmax(0,1fr) auto;gap:8px}.payment-success-allocation-list article .button{grid-column:1/-1;justify-self:start}}
+.payment-charge-form{display:grid;gap:18px}
+.payment-charge-toolbar{display:flex;align-items:center;justify-content:space-between;gap:15px;padding-top:5px}
+.payment-charge-toolbar>div{display:grid;gap:5px}
+.payment-charge-toolbar strong{color:#34473a;font-size:13px}
+.payment-charge-toolbar small,.payment-charge-help{color:#748077;font-size:11px;line-height:1.65}
+.payment-charge-table{overflow:hidden;border:1px solid #e0e6df;border-radius:8px;background:#fff}
+.payment-charge-table-head,.payment-charge-row{display:grid;grid-template-columns:minmax(180px,1.7fr) minmax(145px,1.15fr) minmax(110px,.8fr) 90px;align-items:center;gap:10px;padding:11px 13px}
+.payment-charge-table-head{background:#f4f7f3;color:#647168;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.payment-charge-row{border-top:1px solid #e8ece7}
+.payment-charge-row input,.payment-charge-row select,.payment-charge-schedule input{width:100%;min-height:41px;padding:9px 10px;border:1px solid #d9e1d8;border-radius:5px;background:#fbfcfa;color:#26342b;font:12px 'Manrope',Arial,sans-serif}
+.payment-charge-remove{min-height:37px;padding:0 9px;color:#a64b3c}
+.payment-charge-empty{margin:0;padding:16px;border:1px dashed #d7dfd5;border-radius:7px;color:#78837a;font-size:12px}
+.payment-charge-schedule-toggle{padding-top:13px;border-top:1px solid #e7ebe5}
+.payment-charge-schedule{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.payment-charge-schedule label{display:grid;gap:7px;color:#45564a;font-size:11px;font-weight:700}
+.payment-charge-help{margin:0;padding:12px 14px;border:1px solid #e0e7df;border-radius:6px;background:#f7f9f6}
+.client-charge-summary{display:grid;gap:9px;margin:14px 0;padding:14px 16px;border:1px solid #dfe7dc;border-radius:7px;background:#f7f9f6;color:#4e5c52;font-size:11px}
+.client-charge-summary>strong{color:#34473a;font-size:12px}
+.client-charge-summary>div{display:flex;justify-content:space-between;gap:15px}
+.client-charge-summary b{color:#3c5142;white-space:nowrap}
+.client-charge-summary .client-charge-total{padding-top:9px;border-top:1px solid #dce4da;color:#26342b;font-size:12px;font-weight:700}
+.client-payment-batch>.client-charge-summary{margin:0 0 14px}
+.payment-record>div:first-child{display:grid;gap:5px}
+@media(max-width:680px){.payment-charge-toolbar{align-items:flex-start;flex-direction:column}.payment-charge-toolbar .button{width:100%;justify-content:center}.payment-charge-table-head{display:none}.payment-charge-row{grid-template-columns:minmax(0,1fr);gap:8px;padding:12px}.payment-charge-remove{justify-self:start}.payment-charge-schedule{grid-template-columns:minmax(0,1fr)}}
