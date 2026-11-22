@@ -834,11 +834,14 @@ function MonthlyFinanceChart({ orders, audience = 'admin' }) {
   const billedTotal = rows.reduce((total, row) => total + row.billed, 0)
   const collectedTotal = rows.reduce((total, row) => total + row.collected, 0)
   const prefix = audience === 'client' ? 'client' : 'admin'
+  const paidLabel = audience === 'client' ? 'Paid' : 'Collected'
+  const chartTitle = audience === 'client' ? 'Billing and payments' : 'Billing and collections'
+  const totalsNote = audience === 'client' ? 'Paid totals include confirmed payments, less recorded refunds.' : 'Collections use confirmed payments, less recorded refunds.'
   return <article className={`admin-overview-chart monthly-finance-chart ${prefix}-monthly-finance-chart`}>
-    <div className="admin-overview-chart-heading"><div><span className="eyebrow">LAST 6 MONTHS</span><h3>Billing and collections</h3></div><strong>{formatMoney(collectedTotal)} collected</strong></div>
-    <div className="monthly-finance-legend"><span><i className="billed"/>Billed {formatMoney(billedTotal)}</span><span><i className="collected"/>Collected {formatMoney(collectedTotal)}</span><small>Collections use confirmed payments, less recorded refunds.</small></div>
-    <div className="monthly-finance-bars" role="img" aria-label={`Six month billing and net collections: ${rows.map(row => `${row.label}, billed ${formatMoney(row.billed)}, collected ${formatMoney(row.collected)}`).join('; ')}`}>
-      {rows.map(row => <div className="monthly-finance-column" key={row.key} title={`${row.label}: billed ${formatMoney(row.billed)}, collected ${formatMoney(row.collected)}, ${row.orders} orders`}>
+    <div className="admin-overview-chart-heading"><div><span className="eyebrow">LAST 6 MONTHS</span><h3>{chartTitle}</h3></div><strong>{formatMoney(collectedTotal)} {paidLabel.toLowerCase()}</strong></div>
+    <div className="monthly-finance-legend"><span><i className="billed"/>Billed {formatMoney(billedTotal)}</span><span><i className="collected"/>{paidLabel} {formatMoney(collectedTotal)}</span><small>{totalsNote}</small></div>
+    <div className="monthly-finance-bars" role="img" aria-label={`Six month billing and ${paidLabel.toLowerCase()} totals: ${rows.map(row => `${row.label}, billed ${formatMoney(row.billed)}, ${paidLabel.toLowerCase()} ${formatMoney(row.collected)}`).join('; ')}`}>
+      {rows.map(row => <div className="monthly-finance-column" key={row.key} title={`${row.label}: billed ${formatMoney(row.billed)}, ${paidLabel.toLowerCase()} ${formatMoney(row.collected)}, ${row.orders} orders`}>
         <div className="monthly-finance-track"><i className="billed" style={{ height: `${row.billed ? Math.max(3, row.billed / maxValue * 100) : 0}%` }}/><i className="collected" style={{ height: `${row.collected ? Math.max(3, row.collected / maxValue * 100) : 0}%` }}/></div>
         <strong>{row.label}</strong><span>{row.orders} order{row.orders === 1 ? '' : 's'}</span>
       </div>)}
