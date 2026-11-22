@@ -770,6 +770,20 @@ function PaymentSummary({ orders, title, className = '' }) {
   </section>
 }
 
+function DashboardClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const time = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).format(now)
+  const date = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }).format(now)
+  return <time className="dashboard-clock" dateTime={now.toISOString()} aria-label={`India time ${time}, ${date}`}>
+    <i className="dashboard-clock-live" aria-hidden="true"/>
+    <span><small>INDIA TIME · IST</small><strong aria-live="off">{time}</strong><span>{date}</span></span>
+  </time>
+}
+
 function indiaDateKey(value) {
   const date = new Date(value)
   if (!Number.isFinite(date.getTime())) return ''
@@ -3124,7 +3138,7 @@ function App() {
 
       {page === 'payment-success' && user?.role === 'client' && paymentSuccess && <PaymentSuccessPage details={paymentSuccess} token={user.token} email={user.profile?.email || user.email} onReturn={() => { setClientTab('orders'); go('client') }}/>}
 
-      {page === 'client' && <main className="inner-page dashboard"><div className="dash-head"><div><div className="eyebrow"><span className="live-dot"/> CLIENT WORKSPACE</div><h1 className="inner-title">Hello, <em>{user?.name || 'there'}.</em></h1><p className="inner-lede">Manage your profile, place orders, and track each request here.</p></div><div className="workspace-actions"><button className="button dark" disabled={Boolean(user?.profile?.profileFrozen)} onClick={() => go('orders')}>Place order <Plus size={16}/></button><button className="button outline" onClick={logout}>Sign out</button></div></div>
+      {page === 'client' && <main className="inner-page dashboard"><div className="dash-head"><div><div className="eyebrow"><span className="live-dot"/> CLIENT WORKSPACE</div><h1 className="inner-title">Hello, <em>{user?.name || 'there'}.</em></h1><p className="inner-lede">Manage your profile, place orders, and track each request here.</p></div><div className="dashboard-head-tools"><DashboardClock/><div className="workspace-actions"><button className="button dark" disabled={Boolean(user?.profile?.profileFrozen)} onClick={() => go('orders')}>Place order <Plus size={16}/></button><button className="button outline" onClick={logout}>Sign out</button></div></div></div>
         <DashboardTabBar tabs={clientDashboardTabs} active={clientTab} idPrefix="client-dashboard" label="Client dashboard sections" onChange={setClientTab}/>
         {clientPromoCode?.enabled && clientPromoCode.code && <aside className="client-promo-banner"><span aria-hidden="true">{clientPromoCode.emoji || '🎉'}</span><div><strong>{clientPromoCode.discountType === 'percent' ? `${clientPromoCode.discountValue}% off` : `${formatMoney(clientPromoCode.discountValue)} off`} with promo code {clientPromoCode.code}</strong><small>Enter this code in an eligible order’s payment section to deduct the discount from its outstanding balance.</small></div></aside>}
         <div className="dashboard-tab-panel" id="client-dashboard-panel" role="tabpanel" tabIndex={0} aria-labelledby={`client-dashboard-${clientTab}-tab`}>
@@ -3142,7 +3156,7 @@ function App() {
       </main>}
 
       {page === 'admin' && <main className="inner-page dashboard">
-        <div className="dash-head"><div><div className="eyebrow"><span className="live-dot"/> ADMIN PANEL</div><h1 className="inner-title">Order<br /><em>requests.</em></h1><p className="inner-lede">Review shop details, medicines, and uploaded documents.</p></div><button className="button outline" onClick={logout}>Sign out</button></div>
+        <div className="dash-head"><div><div className="eyebrow"><span className="live-dot"/> ADMIN PANEL</div><h1 className="inner-title">Order<br /><em>requests.</em></h1><p className="inner-lede">Review shop details, medicines, and uploaded documents.</p></div><div className="dashboard-head-tools"><DashboardClock/><button className="button outline" onClick={logout}>Sign out</button></div></div>
         <DashboardTabBar tabs={adminDashboardTabs} active={adminTab} idPrefix="admin-dashboard" label="Admin dashboard sections" onChange={tab => { setAdminTab(tab); setExternalPortal(tab === 'courier' || tab === 'eway' ? tab : null) }}/>
         <div className="dashboard-tab-panel" id="admin-dashboard-panel" role="tabpanel" tabIndex={0} aria-labelledby={`admin-dashboard-${adminTab}-tab`}>
         {adminTab === 'overview' && <section className="admin-overview-tab"><div className="stats-grid profile-stats"><article><span>CUSTOMER PROFILES</span><strong>{profiles.length.toString().padStart(2,'0')}</strong><small>Unique GST numbers</small></article><article><span>AWAITING APPROVAL</span><strong>{orders.filter(o => ['Pending approval', 'In progress'].includes(o.status) && !o.approvedAt).length.toString().padStart(2,'0')}</strong><small>Orders need your review</small></article></div><PaymentSummary orders={orders} title="Overall payment totals" className="admin-payment-overview"/><AdminOverviewCharts orders={orders}/></section>}
