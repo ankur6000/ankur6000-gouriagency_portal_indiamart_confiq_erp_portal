@@ -770,6 +770,12 @@ function PaymentSummary({ orders, title, className = '' }) {
   </section>
 }
 
+function getOrderAvailableBalance(order) {
+  const pending = (order.payments || []).filter(payment => payment.status === 'Pending verification' || ['Razorpay payment processing', 'Cashfree payment processing'].includes(payment.status) || (['Awaiting Razorpay payment', 'Awaiting Cashfree payment'].includes(payment.status) && Date.parse(payment.expiresAt) > Date.now())).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+  const balance = order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - pending)
+  return Math.round(balance * 100) / 100
+}
+
 function DashboardClock() {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -1922,11 +1928,7 @@ function ClientPaymentBatch({ orders, razorpayKeyId, cashfreeEnabled, cashfreeEn
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
-  const availableOrders = orders.map(order => {
-    const pending = (order.payments || []).filter(payment => payment.status === 'Pending verification' || ['Razorpay payment processing', 'Cashfree payment processing'].includes(payment.status) || (['Awaiting Razorpay payment', 'Awaiting Cashfree payment'].includes(payment.status) && Date.parse(payment.expiresAt) > Date.now())).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
-    const balance = order.status === 'Cancelled' ? 0 : Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0) - pending)
-    return { order, balance: Math.round(balance * 100) / 100 }
-  }).filter(item => item.balance > 0)
+  const availableOrders = orders.map(order => ({ order, balance: getOrderAvailableBalance(order) })).filter(item => item.balance > 0)
   const payableOrders = availableOrders.filter(item => item.order.status !== 'Cancelled')
   const selectedOrders = availableOrders.filter(item => selectedIds.includes(item.order.id) && item.order.status !== 'Cancelled')
   const total = Math.round(selectedOrders.reduce((sum, item) => sum + item.balance, 0) * 100) / 100
@@ -2011,8 +2013,23 @@ function ClientPaymentBatch({ orders, razorpayKeyId, cashfreeEnabled, cashfreeEn
   </section>
 }
 
+function ClientDuesTab({ orders, razorpayKeyId, cashfreeEnabled, cashfreeEnvironment, bankTransferDetails, promoCode, token, currentTime, onOrdersUpdated, onOrderUpdated, onPaymentSuccess, notice }) {
+  const payableOrders = orders.filter(order => order.status !== 'Cancelled' && getOrderAvailableBalance(order) > 0)
+  const awaitingOrders = orders.filter(order => order.status !== 'Cancelled' && Number(order.amountDue || 0) - Number(order.amountPaid || 0) > 0 && getOrderAvailableBalance(order) <= 0)
+  return <section className="dash-panel client-dues-tab">
+    <div className="panel-heading"><div><span className="eyebrow">BILL-WISE CHECKOUT</span><h2>Pay your outstanding bills</h2><p>Select order balances for one checkout, or pay the remaining bill directly.</p></div><Package size={22}/></div>
+    <PaymentSummary orders={orders} title="Your overall balance" className="client-payment-overview"/>
+    {notice && <div className="admin-notice" role="alert">{notice}</div>}
+    {payableOrders.length > 1 && <ClientPaymentBatch orders={orders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} token={token} onOrdersUpdated={onOrdersUpdated} onPaymentSuccess={onPaymentSuccess}/>}
+    {payableOrders.length === 1 && <div className="client-single-due"><div className="client-single-due-heading"><span className="eyebrow">ONE BILL AVAILABLE</span><strong>{payableOrders[0].id} · {formatMoney(getOrderAvailableBalance(payableOrders[0]))}</strong></div><div className="client-payment-list"><ClientPaymentOrder order={payableOrders[0]} profileOrders={orders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={promoCode} token={token} currentTime={currentTime} onUpdated={onOrderUpdated} onPaymentSuccess={onPaymentSuccess}/></div></div>}
+    {!payableOrders.length && orders.length > 0 && <div className="client-dues-empty"><strong>{awaitingOrders.length ? 'Payment confirmation is in progress' : 'No outstanding bills'}</strong><span>{awaitingOrders.length ? 'Your submitted payment is being reconciled. The bill will update when the gateway or agency confirms it.' : 'All recorded order balances are paid.'}</span></div>}
+    {!orders.length && <div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No bills are available yet.</h3><p>Outstanding order balances will appear here after the agency records them.</p></div>}
+  </section>
+}
+
 const clientDashboardTabs = [
   { id: 'overview', label: 'Overview' },
+  { id: 'pay-dues', label: 'Pay dues' },
   { id: 'orders', label: 'Orders & payments' },
   { id: 'statements', label: 'Statements' },
   { id: 'messages', label: 'Messages' },
@@ -3143,11 +3160,12 @@ function App() {
         {clientPromoCode?.enabled && clientPromoCode.code && <aside className="client-promo-banner"><span aria-hidden="true">{clientPromoCode.emoji || '🎉'}</span><div><strong>{clientPromoCode.discountType === 'percent' ? `${clientPromoCode.discountValue}% off` : `${formatMoney(clientPromoCode.discountValue)} off`} with promo code {clientPromoCode.code}</strong><small>Enter this code in an eligible order’s payment section to deduct the discount from its outstanding balance.</small></div></aside>}
         <div className="dashboard-tab-panel" id="client-dashboard-panel" role="tabpanel" tabIndex={0} aria-labelledby={`client-dashboard-${clientTab}-tab`}>
         {clientTab === 'overview' && <section className="dash-panel client-overview-panel"><div className="panel-heading"><div><span className="eyebrow">ACCOUNT OVERVIEW</span><h2>Your balance at a glance</h2></div><Package size={22}/></div><PaymentSummary orders={clientOrders} title="Your overall balance" className="client-payment-overview"/><ClientOverviewCharts orders={clientOrders}/><div className="dashboard-overview-actions"><button type="button" className="button dark" onClick={() => setClientTab('orders')}>View orders and payments <ArrowRight size={14}/></button><button type="button" className="button outline" onClick={() => setClientTab('statements')}>Email a statement <ArrowRight size={14}/></button></div></section>}
+        {clientTab === 'pay-dues' && <ClientDuesTab orders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} token={user.token} currentTime={currentTime} notice={clientOrderNotice} onOrdersUpdated={updatedOrders => setClientOrders(prev => prev.map(item => updatedOrders.find(updated => updated.id === item.id) || item))} onOrderUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>}
         {clientTab === 'orders' && <div className="dash-panel client-orders-panel">
           <div className="panel-heading"><div><span className="eyebrow">ORDERS & PAYMENTS</span><h2>Your orders and dues</h2></div><Package size={22}/></div>
           <PaymentSummary orders={clientOrders} title="Your overall balance" className="client-payment-overview"/>
           {clientOrderNotice && <div className="admin-notice" role="alert">{clientOrderNotice}</div>}
-          {clientOrders.length ? <><ClientPaymentBatch orders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} token={user.token} onOrdersUpdated={updatedOrders => setClientOrders(prev => prev.map(item => updatedOrders.find(updated => updated.id === item.id) || item))} onPaymentSuccess={showPaymentSuccess}/><div className="client-payment-list">{clientOrders.map(order => <ClientPaymentOrder key={order.id} order={order} profileOrders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} token={user.token} currentTime={currentTime} onUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>)}</div></> : <div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No orders or dues yet.</h3><p>Order balances set by the agency will appear here.</p></div>}
+          {clientOrders.length ? <><div className="client-payment-list">{clientOrders.map(order => <ClientPaymentOrder key={order.id} order={order} profileOrders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} token={user.token} currentTime={currentTime} onUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>)}</div></> : <div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No orders or dues yet.</h3><p>Order balances set by the agency will appear here.</p></div>}
         </div>}
         {clientTab === 'statements' && <section className="dash-panel client-statement-panel"><div className="panel-heading"><div><span className="eyebrow">ACCOUNT RECORDS</span><h2>Statements</h2><p>Download or email a date-range statement to your registered email.</p></div><Package size={22}/></div>{user?.profile && <StatementDownload profile={user.profile} orders={clientOrders} token={user.token}/>}</section>}
         {clientTab === 'messages' && <CommunicationsPanel token={user.token} role="client" profile={user?.profile}/>}
