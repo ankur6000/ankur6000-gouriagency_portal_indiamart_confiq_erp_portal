@@ -917,6 +917,21 @@ p{line-height:1.7}
 .admin-payment-controls label{line-height:1.45}
 .refund-retry-button{align-self:flex-start;min-height:36px;margin-top:4px;color:#8d5148;border-color:#e3d5d2;font-size:10px}
 @media(max-width:700px){.client-payment-order{padding:17px}.client-payment-history>article{grid-template-columns:1fr;align-items:start;gap:10px}.client-payment-history .receipt-download-button{justify-self:start}.client-order-actions{margin-top:0}.payment-review-actions{justify-content:flex-start}}
+.client-transactions-panel .panel-heading p{margin:7px 0 0;color:#78827a;font-size:10px;line-height:1.6}
+.client-transaction-list{padding:0 22px}
+.client-transaction-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 2px;border-bottom:1px solid #e6eae4}
+.client-transaction-row:last-child{border-bottom:0}
+.client-transaction-main{display:flex;min-width:0;flex-direction:column;align-items:flex-start;gap:5px}
+.client-transaction-title{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.client-transaction-title>strong{color:#29392f;font-size:12px}
+.client-transaction-main>small{color:#768078;font-size:10px;line-height:1.55;overflow-wrap:anywhere}
+.client-transaction-main>.client-transaction-reason{color:#955247}
+.client-transaction-status{display:inline-flex;align-items:center;border-radius:20px;padding:4px 8px;background:#eff1ed;color:#69736b;font-size:9px;font-weight:700}
+.client-transaction-status.status-failed,.client-transaction-status.status-rejected{background:#f8e9e6;color:#984c42}
+.client-transaction-status.status-processed,.client-transaction-status.status-partially-refunded{background:#e9f1e6;color:#426248}
+.client-transaction-status.status-pending,.client-transaction-status.status-initiating{background:#f5f0e4;color:#8b6a2b}
+.client-transaction-amount{flex:0 0 auto;color:#344c3e;font:600 15px 'Manrope';white-space:nowrap}
+@media(max-width:600px){.client-transaction-list{padding:0 15px}.client-transaction-row{align-items:flex-start;gap:9px;flex-direction:column}.client-transaction-amount{font-size:13px}}
 
 /* Compact profile cards and clear order approval states. */
 .admin-customer-details>summary{list-style:none;display:flex;align-items:center;gap:15px;min-height:94px;padding:17px 20px;cursor:pointer;transition:background .18s ease}

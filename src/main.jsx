@@ -2389,10 +2389,71 @@ const clientDashboardTabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'pay-dues', label: 'Pay dues' },
   { id: 'orders', label: 'Orders & payments' },
+  { id: 'failed-transactions', label: 'Failed transactions' },
+  { id: 'refunds', label: 'Refunds' },
   { id: 'statements', label: 'Statements' },
   { id: 'messages', label: 'Messages' },
   { id: 'profile', label: 'Profile' }
 ]
+
+function ClientTransactionsTab({ orders, kind }) {
+  const isRefunds = kind === 'refunds'
+  const seenTransactions = new Set()
+  const transactions = orders.flatMap(order => (order.payments || []).flatMap(payment => {
+    if (isRefunds) {
+      const refunds = payment.refunds?.length
+        ? payment.refunds
+        : payment.refundStatus
+          ? [{ id: payment.refundId || '', amount: payment.amountRefunded || payment.amount, status: payment.refundStatus, reason: payment.refundFailureReason || '' }]
+          : []
+      return refunds
+        .filter(refund => !refund.allocationOrderId || refund.allocationOrderId === order.id)
+        .map(refund => ({ order, payment, refund }))
+    }
+    return ['failed', 'rejected'].includes(String(payment.status || '').toLowerCase())
+      ? [{ order, payment }]
+      : []
+  })).filter(({ order, payment, refund }) => {
+    const key = isRefunds
+      ? refund?.id || refund?.receipt || `${order.id}/${payment.id}/refund`
+      : payment.batchId ? `batch/${payment.batchId}` : `${order.id}/${payment.id}/failed`
+    if (seenTransactions.has(key)) return false
+    seenTransactions.add(key)
+    return true
+  })
+
+  const title = isRefunds ? 'Refund transactions' : 'Failed transactions'
+  const subtitle = isRefunds
+    ? 'Track refunds by order, payment method, amount, and current status.'
+    : 'Payment attempts that were not completed or were marked as not received.'
+
+  return <section className={`dash-panel client-transactions-panel ${isRefunds ? 'refund-transactions-panel' : 'failed-transactions-panel'}`}>
+    <div className="panel-heading"><div><span className="eyebrow">PAYMENT RECORDS</span><h2>{title}</h2><p>{subtitle}</p></div><span className="count-pill">{transactions.length} {isRefunds ? 'refunds' : 'transactions'}</span></div>
+    {transactions.length ? <div className="client-transaction-list">{transactions.map(({ order, payment, refund }, index) => {
+      const status = isRefunds ? String(refund.status || payment.refundStatus || 'pending') : String(payment.status || 'Failed')
+      const failedAt = payment.failedAt || payment.reviewedAt || payment.submittedAt || payment.paidAt
+      const refundAt = refund?.processedAt || refund?.updatedAt || refund?.createdAt || payment.refundUpdatedAt || payment.paidAt || payment.submittedAt
+      const reference = isRefunds
+        ? refund?.id || refund?.receipt || payment.refundId || payment.reference || '—'
+        : payment.reference || payment.razorpayPaymentId || payment.cashfreePaymentId || payment.razorpayOrderId || payment.cashfreeOrderId || '—'
+      const amount = isRefunds ? refund?.amount ?? payment.amountRefunded ?? payment.amount : payment.batchTotalAmount ?? payment.transactionAmount ?? payment.amount
+      const statusLabel = isRefunds
+        ? ({ initiating: 'Starting refund', pending: 'Refund processing', processed: 'Refunded', partially_refunded: 'Partially refunded', failed: 'Refund failed', manual_review: 'Agency review required' }[status] || status)
+        : paymentStatusLabel(payment)
+      const reason = isRefunds ? refund?.reason || refund?.failureReason || payment.refundFailureReason : payment.failureReason
+      return <article className="client-transaction-row" key={`${order.id}-${payment.id}-${isRefunds ? reference : 'failed'}-${index}`}>
+        <div className="client-transaction-main"><div className="client-transaction-title"><strong>{payment.batchId && payment.batchOrderIds?.length > 1 ? payment.batchOrderIds.join(', ') : order.id}</strong><span className={`client-transaction-status status-${status.toLowerCase().replace(/[^a-z]+/g, '-')}`}>{statusLabel}</span></div>
+          <small>{payment.provider || payment.originalProvider || 'Payment gateway'} · {isRefunds ? `Refund ${reference}` : `Payment ${reference}`}</small>
+          {(isRefunds ? refundAt : failedAt) && <small>{isRefunds ? 'Refund updated' : 'Attempt recorded'} {formatTimestamp(isRefunds ? refundAt : failedAt)}</small>}
+          {reason && <small className="client-transaction-reason">{reason}</small>}
+          {isRefunds && refund?.arn && <small>Refund ARN: {refund.arn}</small>}
+        </div>
+        <strong className="client-transaction-amount">{formatMoney(amount)}</strong>
+      </article>
+    })}</div> : <div className="empty-state"><div className="empty-icon"><Package size={19}/></div><h3>{isRefunds ? 'No refunds recorded.' : 'No failed transactions.'}</h3><p>{isRefunds ? 'Any refund updates for your payments will appear here.' : 'Unsuccessful payment attempts will appear here. They are excluded from your statement and ledger PDFs.'}</p></div>}
+  </section>
+}
+
 const adminDashboardTabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'notices', label: 'Notice board' },
@@ -3553,6 +3614,8 @@ function App() {
           {clientOrderNotice && <div className="admin-notice" role="alert">{clientOrderNotice}</div>}
           {clientOrders.length ? <><div className="client-payment-list">{clientOrders.map(order => <ClientPaymentOrder key={order.id} order={order} profileOrders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} paymentCharges={clientPaymentCharges} token={user.token} currentTime={currentTime} onUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>)}</div></> : <div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No orders or dues yet.</h3><p>Order balances set by the agency will appear here.</p></div>}
         </div>}
+        {clientTab === 'failed-transactions' && <ClientTransactionsTab orders={clientOrders} kind="failed"/>}
+        {clientTab === 'refunds' && <ClientTransactionsTab orders={clientOrders} kind="refunds"/>}
         {clientTab === 'statements' && <section className="dash-panel client-statement-panel"><div className="panel-heading"><div><span className="eyebrow">ACCOUNT RECORDS</span><h2>Statements</h2><p>Download or email a date-range statement to your registered email.</p></div><Package size={22}/></div>{user?.profile && <StatementDownload profile={user.profile} orders={clientOrders} token={user.token}/>}</section>}
         {clientTab === 'messages' && <CommunicationsPanel token={user.token} role="client" profile={user?.profile}/>}
         {clientTab === 'profile' && (user?.profile ? <div className="dash-panel client-profile-panel"><div className="panel-heading"><div><span className="eyebrow">YOUR ACCOUNT</span><h2>Profile details</h2></div><div className="panel-heading-actions"><button type="button" className="button outline latest-pdf-button" disabled={!user.profile.orderIds?.length} onClick={() => downloadProtectedPdf(`${API}/client/profile/latest-ledger`, user.token).catch(error => setClientOrderNotice(error.message))}>Download latest order &amp; profile PDF <ArrowDown size={14}/></button><Package size={22}/></div></div><ClientProfileDetails profile={user.profile} token={user.token} onViewDocument={setPreviewDocument} onSaved={profile => setUser(current => ({ ...current, profile, email: profile.email, name: profile.ownerName || profile.shopName }))}/><div className="account-delete-box"><div><strong>Delete your profile</strong><p>Your profile, submitted documents, and active orders will be moved to the agency admin’s recovery bin for 30 days.</p></div><button className="button danger" type="button" disabled={deletingProfile || clientOrders.some(order => Date.parse(order.paymentEditLockedUntil || '') > Date.now())} onClick={deleteClientProfile}>{deletingProfile ? <LoadingAction label="Deleting profile…"/> : 'Delete my profile'}</button></div></div> : <div className="dash-panel"><div className="panel-heading"><div><span className="eyebrow">YOUR WORKSPACE</span><h2>Shop profile</h2></div><Package size={22}/></div><div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No registered profile linked yet.</h3><p>Submit an order request with your shop details, then sign in with its email, phone, or GST number to manage your profile.</p><button className="text-button underline" onClick={() => go('orders')}>Create an order <ArrowRight size={14}/></button></div></div>)}

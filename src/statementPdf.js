@@ -108,7 +108,8 @@ export function createStatementPdf({ profile, orders = [], fromDate, toDate, gen
     const activity = []
     const paymentDate = payment.paidAt || payment.reviewedAt || payment.submittedAt
     const paymentDateKey = dateKeyFromValue(paymentDate)
-    if (paymentDateKey && paymentDateKey >= fromDate && paymentDateKey <= toDate) activity.push({ order, payment, date: paymentDate, kind: 'payment' })
+    const paymentWasUnsuccessful = ['failed', 'rejected'].includes(String(payment.status || '').toLowerCase())
+    if (!paymentWasUnsuccessful && paymentDateKey && paymentDateKey >= fromDate && paymentDateKey <= toDate) activity.push({ order, payment, date: paymentDate, kind: 'payment' })
     for (const refund of payment.refunds || []) {
       if (refund.allocationOrderId && refund.allocationOrderId !== order.id) continue
       const refundDate = refund.processedAt || refund.updatedAt || refund.createdAt
