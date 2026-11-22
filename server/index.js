@@ -168,6 +168,56 @@ function normalizeHomeSlider(settings) {
     })
   }
 }
+function isValidNoticeDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+function isValidNoticeTime(value) {
+  return typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)
+}
+function validateNoticeSchedule(body) {
+  if (body.scheduleEnabled !== true) return { scheduleEnabled: false, startDate: '', endDate: '', startTime: '', endTime: '' }
+  const startDate = typeof body.startDate === 'string' ? body.startDate.trim() : ''
+  const endDate = typeof body.endDate === 'string' ? body.endDate.trim() : ''
+  const startTime = typeof body.startTime === 'string' ? body.startTime.trim() : ''
+  const endTime = typeof body.endTime === 'string' ? body.endTime.trim() : ''
+  if ((startDate && !isValidNoticeDate(startDate)) || (endDate && !isValidNoticeDate(endDate))) return { error: 'Enter valid notice start and end dates.' }
+  if (startDate && endDate && startDate > endDate) return { error: 'The notice end date must be on or after its start date.' }
+  if (Boolean(startTime) !== Boolean(endTime) || (startTime && (!isValidNoticeTime(startTime) || !isValidNoticeTime(endTime)))) return { error: 'Enter both valid daily times, or leave both blank for all-day visibility.' }
+  return { scheduleEnabled: true, startDate, endDate, startTime, endTime }
+}
+function normalizeNoticeSchedule(item) {
+  const scheduleEnabled = item?.scheduleEnabled === true
+  let startDate = isValidNoticeDate(item?.startDate) ? item.startDate : ''
+  let endDate = isValidNoticeDate(item?.endDate) ? item.endDate : ''
+  if (startDate && endDate && startDate > endDate) { startDate = ''; endDate = '' }
+  const hasValidTimes = isValidNoticeTime(item?.startTime) && isValidNoticeTime(item?.endTime)
+  return {
+    scheduleEnabled,
+    startDate: scheduleEnabled ? startDate : '',
+    endDate: scheduleEnabled ? endDate : '',
+    startTime: scheduleEnabled && hasValidTimes ? item.startTime : '',
+    endTime: scheduleEnabled && hasValidTimes ? item.endTime : ''
+  }
+}
+function isNoticeVisibleAt(notice, now = new Date()) {
+  if (notice.scheduleEnabled !== true) return true
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(now)
+  const value = type => parts.find(part => part.type === type)?.value || ''
+  const date = `${value('year')}-${value('month')}-${value('day')}`
+  const time = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).format(now)
+  if (notice.startDate && date < notice.startDate) return false
+  if (notice.endDate && date > notice.endDate) return false
+  if (!notice.startTime || !notice.endTime) return true
+  return notice.startTime <= notice.endTime
+    ? time >= notice.startTime && time < notice.endTime
+    : time >= notice.startTime || time < notice.endTime
+}
 function normalizeHomeNotices(items) {
   if (!Array.isArray(items)) return []
   return items.slice(0, 200).map(item => {
@@ -180,6 +230,7 @@ function normalizeHomeNotices(items) {
       title,
       body,
       priority: item.priority === 'high' ? 'high' : 'standard',
+      ...normalizeNoticeSchedule(item),
       createdAt: Number.isFinite(createdTimestamp) ? new Date(createdTimestamp).toISOString() : new Date().toISOString()
     }
   }).filter(Boolean).sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
@@ -2261,7 +2312,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
   if (req.method === 'GET' && url.pathname === '/api/home-slider') return json(res, 200, homeSliderPayload())
-  if (req.method === 'GET' && url.pathname === '/api/notices') return json(res, 200, { notices })
+  if (req.method === 'GET' && url.pathname === '/api/notices') return json(res, 200, { notices: notices.filter(notice => isNoticeVisibleAt(notice)) })
   if (req.method === 'GET' && url.pathname === '/api/order-intake-status') return json(res, 200, paymentSettings.orderIntake)
   const ifscMatch = /^\/api\/ifsc\/([A-Z]{4}0[A-Z0-9]{6})$/i.exec(url.pathname)
   if (req.method === 'GET' && ifscMatch) {
@@ -3255,8 +3306,10 @@ const server = http.createServer(async (req, res) => {
     if (!title || title.length > 120) return json(res, 400, { error: 'Enter a notice heading up to 120 characters.' })
     if (!message || message.length > 15000) return json(res, 400, { error: 'Enter a notice message up to 15,000 characters.' })
     if (body.priority !== undefined && !['standard', 'high'].includes(body.priority)) return json(res, 400, { error: 'Choose a valid notice priority.' })
+    const schedule = validateNoticeSchedule(body)
+    if (schedule.error) return json(res, 400, { error: schedule.error })
     if (notices.length >= 200) return json(res, 409, { error: 'The board has reached 200 notices. Delete an old notice before publishing another.' })
-    const notice = { id: randomUUID(), title, body: message, priority: body.priority === 'high' ? 'high' : 'standard', createdAt: new Date().toISOString() }
+    const notice = { id: randomUUID(), title, body: message, priority: body.priority === 'high' ? 'high' : 'standard', ...schedule, createdAt: new Date().toISOString() }
     const previousNotices = [...notices]
     notices.unshift(notice)
     try { await persistPortalState() }
@@ -3265,6 +3318,34 @@ const server = http.createServer(async (req, res) => {
       return json(res, 503, { error: 'MongoDB Atlas could not save the notice. Please try again.' })
     }
     return json(res, 201, { notice, notices })
+  }
+  const adminNoticeUpdateMatch = /^\/api\/admin\/notices\/([a-f0-9-]{36})$/i.exec(url.pathname)
+  if (req.method === 'PUT' && adminNoticeUpdateMatch) {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
+    const body = await readJson(req, res)
+    if (!body) return
+    const title = typeof body.title === 'string' ? body.title.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim() : ''
+    const message = typeof body.body === 'string' ? body.body.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim() : ''
+    if (!title || title.length > 120) return json(res, 400, { error: 'Enter a notice heading up to 120 characters.' })
+    if (!message || message.length > 15000) return json(res, 400, { error: 'Enter a notice message up to 15,000 characters.' })
+    if (body.priority !== undefined && !['standard', 'high'].includes(body.priority)) return json(res, 400, { error: 'Choose a valid notice priority.' })
+    const schedule = validateNoticeSchedule(body)
+    if (schedule.error) return json(res, 400, { error: schedule.error })
+    const noticeIndex = notices.findIndex(item => item.id === adminNoticeUpdateMatch[1].toLowerCase())
+    if (noticeIndex < 0) return json(res, 404, { error: 'Notice not found. It may already have been deleted.' })
+    const previousNotice = notices[noticeIndex]
+    const updatedNotice = { ...previousNotice, title, body: message, priority: body.priority === 'high' ? 'high' : 'standard', ...schedule, updatedAt: new Date().toISOString() }
+    notices[noticeIndex] = updatedNotice
+    notices.sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
+    try { await persistPortalState() }
+    catch {
+      const currentIndex = notices.findIndex(item => item.id === updatedNotice.id)
+      if (currentIndex >= 0) notices[currentIndex] = previousNotice
+      notices.sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
+      return json(res, 503, { error: 'MongoDB Atlas could not save the notice changes. Please try again.' })
+    }
+    return json(res, 200, { notice: updatedNotice, notices })
   }
   const adminNoticeDeleteMatch = /^\/api\/admin\/notices\/([a-f0-9-]{36})$/i.exec(url.pathname)
   if (req.method === 'DELETE' && adminNoticeDeleteMatch) {

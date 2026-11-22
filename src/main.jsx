@@ -494,6 +494,37 @@ function noticePdfFilename(notice) {
   return `${name || 'gouri-agency-notice'}.pdf`
 }
 
+function getIndiaNoticeClock(date = new Date()) {
+  const dateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(date)
+  const datePart = type => dateParts.find(part => part.type === type)?.value || ''
+  const time = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).format(date)
+  return { date: `${datePart('year')}-${datePart('month')}-${datePart('day')}`, time }
+}
+
+function noticeIsVisibleNow(notice, now = new Date()) {
+  if (notice.scheduleEnabled !== true) return true
+  const { date, time } = getIndiaNoticeClock(now)
+  if (notice.startDate && date < notice.startDate) return false
+  if (notice.endDate && date > notice.endDate) return false
+  if (!notice.startTime || !notice.endTime) return true
+  return notice.startTime <= notice.endTime
+    ? time >= notice.startTime && time < notice.endTime
+    : time >= notice.startTime || time < notice.endTime
+}
+
+function noticeScheduleSummary(notice) {
+  if (notice.scheduleEnabled !== true) return 'Visible every day · all day'
+  const dates = notice.startDate || notice.endDate
+    ? `${notice.startDate || 'No start date'} – ${notice.endDate || 'No end date'}`
+    : 'Every day'
+  const hours = notice.startTime && notice.endTime ? `${notice.startTime}–${notice.endTime} IST` : 'All day'
+  return `${dates} · ${hours}`
+}
+
 async function downloadNoticePdf(notice) {
   const blob = await createNoticePdf(notice)
   const url = URL.createObjectURL(blob)
@@ -508,6 +539,7 @@ async function downloadNoticePdf(notice) {
 
 function HomeNoticeBoard() {
   const [notices, setNotices] = useState([])
+  const [scheduleClock, setScheduleClock] = useState(Date.now())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [downloadingId, setDownloadingId] = useState('')
@@ -527,14 +559,19 @@ function HomeNoticeBoard() {
     const refresh = window.setInterval(loadNotices, 30000)
     return () => { cancelled = true; window.clearInterval(refresh) }
   }, [])
+  useEffect(() => {
+    const refreshClock = window.setInterval(() => setScheduleClock(Date.now()), 15000)
+    return () => window.clearInterval(refreshClock)
+  }, [])
   const download = async notice => {
     setDownloadingId(notice.id)
     try { await downloadNoticePdf(notice) }
     catch (downloadError) { setError(downloadError.message || 'Could not create the notice PDF.') }
     finally { setDownloadingId('') }
   }
-  const newestId = notices[0]?.id
-  const duration = `${Math.max(18, notices.length * 9)}s`
+  const visibleNotices = useMemo(() => notices.filter(notice => noticeIsVisibleNow(notice, new Date(scheduleClock))), [notices, scheduleClock])
+  const newestId = visibleNotices[0]?.id
+  const duration = `${Math.max(18, visibleNotices.length * 9)}s`
   const renderNotice = (notice, index, repeated = false) => <article className={`home-notice-card${notice.priority === 'high' ? ' is-high-priority' : ''}${notice.id === newestId ? ' is-latest' : ''}`} key={`${repeated ? 'loop-' : ''}${notice.id}-${index}`}>
     <div className="home-notice-card-copy">
       <div className="home-notice-card-title-row">
@@ -548,14 +585,14 @@ function HomeNoticeBoard() {
     <button type="button" className="button outline notice-pdf-button" disabled={repeated || downloadingId === notice.id} tabIndex={repeated ? -1 : undefined} onClick={() => download(notice)}>{downloadingId === notice.id ? <LoadingAction loading label="Preparing PDF…"/> : <>Download PDF <ArrowDown size={14}/></>}</button>
   </article>
   return <section className="home-notice-board" aria-labelledby="home-notice-title">
-    <div className="home-notice-heading"><div><span className="eyebrow"><span className="live-dot"/> UPDATES FROM GOURI AGENCY</span><h2 id="home-notice-title">Notice board</h2></div><span className="home-notice-count">{notices.length} {notices.length === 1 ? 'notice' : 'notices'}</span></div>
-    {loading ? <div className="home-notice-empty" role="status">Loading current notices…</div> : notices.length ? <div className="home-notice-window" aria-label="Notices scroll upward. Focus or hover to pause.">
+    <div className="home-notice-heading"><div><span className="eyebrow"><span className="live-dot"/> UPDATES FROM GOURI AGENCY</span><h2 id="home-notice-title">Notice board</h2></div><span className="home-notice-count">{visibleNotices.length} {visibleNotices.length === 1 ? 'notice' : 'notices'}</span></div>
+    {loading ? <div className="home-notice-empty" role="status">Loading current notices…</div> : visibleNotices.length ? <div className="home-notice-window" aria-label="Notices scroll upward. Focus or hover to pause.">
       <div className="home-notice-track" style={{ '--notice-marquee-duration': duration }}>
-        <div className="home-notice-group">{notices.map((notice, index) => renderNotice(notice, index))}</div>
-        <div className="home-notice-group" aria-hidden="true">{notices.map((notice, index) => renderNotice(notice, index, true))}</div>
+        <div className="home-notice-group">{visibleNotices.map((notice, index) => renderNotice(notice, index))}</div>
+        <div className="home-notice-group" aria-hidden="true">{visibleNotices.map((notice, index) => renderNotice(notice, index, true))}</div>
       </div>
     </div> : <div className={`home-notice-empty${error ? ' has-error' : ''}`} role={error ? 'status' : undefined}>{error || 'There are no current notices. Please check back for updates.'}</div>}
-    {error && notices.length > 0 && <p className="home-notice-refresh-error" role="status">{error}</p>}
+    {error && visibleNotices.length > 0 && <p className="home-notice-refresh-error" role="status">{error}</p>}
   </section>
 }
 
@@ -1722,12 +1759,19 @@ function AdminNotices({ token }) {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [priority, setPriority] = useState('standard')
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [editingId, setEditingId] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState('')
   const [downloadingId, setDownloadingId] = useState('')
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
+  const formRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -1742,32 +1786,68 @@ function AdminNotices({ token }) {
     return () => { cancelled = true }
   }, [token])
 
+  const resetForm = () => {
+    setTitle(''); setBody(''); setPriority('standard'); setScheduleEnabled(false)
+    setStartDate(''); setEndDate(''); setStartTime(''); setEndTime(''); setEditingId('')
+  }
+  const edit = notice => {
+    setTitle(notice.title || '')
+    setBody(notice.body || '')
+    setPriority(notice.priority === 'high' ? 'high' : 'standard')
+    setScheduleEnabled(notice.scheduleEnabled === true)
+    setStartDate(notice.startDate || '')
+    setEndDate(notice.endDate || '')
+    setStartTime(notice.startTime || '')
+    setEndTime(notice.endTime || '')
+    setEditingId(notice.id)
+    setMessage('Editing this saved notice. Update its details or schedule, then save.')
+    setIsError(false)
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const save = async event => {
     event.preventDefault()
+    if (scheduleEnabled && Boolean(startTime) !== Boolean(endTime)) {
+      setMessage('Enter both daily times, or leave both blank for all-day visibility.')
+      setIsError(true)
+      return
+    }
     setSaving(true); setMessage(''); setIsError(false)
+    const wasEditing = Boolean(editingId)
+    const payload = {
+      title, body, priority, scheduleEnabled,
+      startDate: scheduleEnabled ? startDate : '',
+      endDate: scheduleEnabled ? endDate : '',
+      startTime: scheduleEnabled ? startTime : '',
+      endTime: scheduleEnabled ? endTime : ''
+    }
     try {
-      const response = await fetch(`${API}/admin/notices`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title, body, priority })
+      const response = await fetch(`${API}/admin/notices${wasEditing ? `/${encodeURIComponent(editingId)}` : ''}`, {
+        method: wasEditing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
       })
-      const data = await readApiJson(response, 'Could not publish this notice.')
-      if (!response.ok) throw new Error(data.error || 'Could not publish this notice.')
-      setNotices(Array.isArray(data.notices) ? data.notices : [data.notice, ...notices])
-      setTitle(''); setBody(''); setPriority('standard')
-      setMessage('Notice published on the home page.'); notifyActionSuccess('Notice published on the home page.')
+      const data = await readApiJson(response, wasEditing ? 'Could not update this notice.' : 'Could not publish this notice.')
+      if (!response.ok) throw new Error(data.error || (wasEditing ? 'Could not update this notice.' : 'Could not publish this notice.'))
+      setNotices(Array.isArray(data.notices) ? data.notices : wasEditing
+        ? notices.map(item => item.id === data.notice?.id ? data.notice : item)
+        : [data.notice, ...notices])
+      resetForm()
+      const success = wasEditing ? 'Notice updated and its schedule saved.' : 'Notice published on the home page.'
+      setMessage(success); notifyActionSuccess(success)
     } catch (error) {
-      setMessage(error.message || 'Could not publish this notice.')
+      setMessage(error.message || (wasEditing ? 'Could not update this notice.' : 'Could not publish this notice.'))
       setIsError(true)
     } finally { setSaving(false) }
   }
   const remove = async notice => {
-    if (!window.confirm(`Delete the notice “${notice.title}” from the home page?`)) return
+    if (!window.confirm(`Delete the notice "${notice.title}" from the home page?`)) return
     setDeletingId(notice.id); setMessage(''); setIsError(false)
     try {
       const response = await fetch(`${API}/admin/notices/${encodeURIComponent(notice.id)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
       const data = await readApiJson(response, 'Could not delete this notice.')
       if (!response.ok) throw new Error(data.error || 'Could not delete this notice.')
       setNotices(Array.isArray(data.notices) ? data.notices : notices.filter(item => item.id !== notice.id))
+      if (editingId === notice.id) resetForm()
       setMessage('Notice deleted from the home page.'); notifyActionSuccess('Notice deleted from the home page.')
     } catch (error) {
       setMessage(error.message || 'Could not delete this notice.')
@@ -1782,21 +1862,26 @@ function AdminNotices({ token }) {
   }
   return <section className="dash-panel admin-notices-panel">
     <div className="panel-heading"><div><span className="eyebrow">HOME PAGE CONTENT</span><h2>Notice board</h2><p>Publish important updates for visitors. The newest notice appears first and scrolls upward on the home page.</p></div><span className="admin-notice-count">{notices.length} saved</span></div>
-    <form className="admin-notice-form" onSubmit={save}>
+    <form className="admin-notice-form" ref={formRef} onSubmit={save}>
+      <div className="admin-notice-form-title"><strong>{editingId ? 'Edit notice' : 'Create a notice'}</strong>{editingId && <button className="button outline compact" type="button" disabled={saving} onClick={() => { resetForm(); setMessage('Edit cancelled.'); setIsError(false) }}>Cancel edit</button>}</div>
       <label>Notice heading<input type="text" maxLength={120} required value={title} disabled={saving} onChange={event => { setTitle(event.target.value); setMessage(''); setIsError(false) }} placeholder="Short, clear announcement"/></label>
       <label>Notice message<textarea maxLength={15000} rows={5} required value={body} disabled={saving} onChange={event => { setBody(event.target.value); setMessage(''); setIsError(false) }} placeholder="Write the complete notice for customers and visitors."/></label>
       <label className="admin-notice-priority"><input type="checkbox" checked={priority === 'high'} disabled={saving} onChange={event => setPriority(event.target.checked ? 'high' : 'standard')}/><span><strong>High priority alert</strong><small>Show a blinking alert mark beside this notice.</small></span></label>
-      <div className="admin-notice-form-footer"><small>{body.length}/15000 characters</small><button className="button dark" type="submit" disabled={saving || loading}>{saving ? <LoadingAction loading label="Publishing notice…"/> : <>Publish notice <Plus size={15}/></>}</button></div>
+      <label className="admin-notice-schedule-toggle"><input type="checkbox" checked={scheduleEnabled} disabled={saving} onChange={event => setScheduleEnabled(event.target.checked)}/><span><strong>Schedule this notice</strong><small>Choose a date range and/or daily hours. Leave both blank to show it every day, all day.</small></span></label>
+      {scheduleEnabled && <div className="admin-notice-schedule-fields">
+        <div className="admin-notice-schedule-group"><div><strong>Optional date range</strong><small>Leave either date blank for an open-ended schedule.</small></div><div className="admin-notice-schedule-inputs"><label>Start date<input type="date" value={startDate} max={endDate || undefined} disabled={saving} onChange={event => setStartDate(event.target.value)}/></label><label>End date<input type="date" value={endDate} min={startDate || undefined} disabled={saving} onChange={event => setEndDate(event.target.value)}/></label></div></div>
+        <div className="admin-notice-schedule-group"><div><strong>Optional daily hours (IST)</strong><small>Set both times to limit visibility each day. Leave blank for all-day visibility.</small></div><div className="admin-notice-schedule-inputs"><label>Visible from<input type="time" value={startTime} disabled={saving} onChange={event => setStartTime(event.target.value)}/></label><label>Visible until<input type="time" value={endTime} disabled={saving} onChange={event => setEndTime(event.target.value)}/></label></div></div>
+      </div>}
+      <div className="admin-notice-form-footer"><small>{body.length}/15000 characters</small><button className="button dark" type="submit" disabled={saving || loading}>{saving ? <LoadingAction loading label={editingId ? 'Saving notice…' : 'Publishing notice…'}/>: editingId ? <>Save changes <Check size={15}/></> : <>Publish notice <Plus size={15}/></>}</button></div>
       {message && <p className={`admin-notice-feedback${isError ? ' is-error' : ''}`} role={isError ? 'alert' : 'status'}>{message}</p>}
     </form>
     <div className="admin-notice-list-heading"><h3>Published notices</h3><span>{notices.length}</span></div>
     {loading ? <p className="admin-notice-empty">Loading saved notices…</p> : notices.length ? <div className="admin-notice-list">{notices.map((notice, index) => <article className={`admin-notice-row${notice.priority === 'high' ? ' is-high-priority' : ''}`} key={notice.id}>
-      <div className="admin-notice-row-copy"><div><strong>{notice.title}</strong>{notice.priority === 'high' && <span className="admin-notice-priority-pill"><i>!</i> High priority</span>}</div><p>{notice.body}</p><time dateTime={notice.createdAt}>{new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date(notice.createdAt))} IST{index === 0 ? ' · Latest' : ''}</time></div>
-      <div className="admin-notice-row-actions"><button type="button" className="button outline" disabled={downloadingId === notice.id || deletingId === notice.id} onClick={() => download(notice)}>{downloadingId === notice.id ? <LoadingAction loading label="Preparing PDF…"/> : <>Download PDF <ArrowDown size={14}/></>}</button><button type="button" className="button danger compact" disabled={deletingId === notice.id || downloadingId === notice.id} onClick={() => remove(notice)}>{deletingId === notice.id ? <LoadingAction loading label="Deleting…"/> : 'Delete notice'}</button></div>
+      <div className="admin-notice-row-copy"><div><strong>{notice.title}</strong>{notice.priority === 'high' && <span className="admin-notice-priority-pill"><i>!</i> High priority</span>}</div><p>{notice.body}</p><time dateTime={notice.createdAt}>{new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date(notice.createdAt))} IST{index === 0 ? ' · Latest' : ''}</time><small className="admin-notice-schedule-summary">{noticeScheduleSummary(notice)}</small></div>
+      <div className="admin-notice-row-actions"><button type="button" className="button outline" disabled={saving || downloadingId === notice.id || deletingId === notice.id} onClick={() => edit(notice)}><Pencil size={13}/> Edit</button><button type="button" className="button outline" disabled={downloadingId === notice.id || deletingId === notice.id} onClick={() => download(notice)}>{downloadingId === notice.id ? <LoadingAction loading label="Preparing PDF…"/> : <>Download PDF <ArrowDown size={14}/></>}</button><button type="button" className="button danger compact" disabled={deletingId === notice.id || downloadingId === notice.id} onClick={() => remove(notice)}>{deletingId === notice.id ? <LoadingAction loading label="Deleting…"/> : 'Delete notice'}</button></div>
     </article>)}</div> : <div className="admin-notice-empty">No notices have been published yet.</div>}
   </section>
 }
-
 function HomeSliderSettings({ token }) {
   const [settings, setSettings] = useState({ enabled: true, intervalSeconds: '10', images: Array(6).fill(null) })
   const [loading, setLoading] = useState(true)

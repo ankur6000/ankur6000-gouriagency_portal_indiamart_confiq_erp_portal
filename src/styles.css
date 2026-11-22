@@ -1060,8 +1060,8 @@ p{line-height:1.7}
 .admin-notices-panel>.panel-heading{align-items:flex-start}
 .admin-notice-count{flex-shrink:0;padding:7px 10px;border:1px solid #dfe7dc;border-radius:20px;background:#f4f7f2;color:#526550;font-size:9px;font-weight:700}
 .admin-notice-form{display:grid;gap:15px;padding:19px;border:1px solid #e1e7df;border-radius:8px;background:#f8faf7}
-.admin-notice-form>label:not(.admin-notice-priority){display:grid;gap:7px;color:#59675e;font-size:10px;font-weight:700}
-.admin-notice-form input[type=text],.admin-notice-form textarea{width:100%;padding:12px;border:1px solid #dce3da;border-radius:5px;background:#fff;color:#26342c;font-size:11px;line-height:1.55;outline:none}
+.admin-notice-form>label:not(.admin-notice-priority):not(.admin-notice-schedule-toggle){display:grid;gap:7px;color:#59675e;font-size:10px;font-weight:700}
+.admin-notice-form input[type=text],.admin-notice-form input[type=date],.admin-notice-form input[type=time],.admin-notice-form textarea{width:100%;min-width:0;padding:12px;border:1px solid #dce3da;border-radius:5px;background:#fff;color:#26342c;font-size:11px;line-height:1.55;outline:none}
 .admin-notice-form textarea{min-height:132px;resize:vertical}
 .admin-notice-form input:focus,.admin-notice-form textarea:focus{border-color:#78946b;box-shadow:0 0 0 3px #78946b1e}
 .admin-notice-priority{display:flex;align-items:center;gap:11px;width:fit-content;padding:10px 12px;border:1px solid #ead8d5;border-radius:6px;background:#fffafa;cursor:pointer}
@@ -1069,6 +1069,18 @@ p{line-height:1.7}
 .admin-notice-priority span{display:grid;gap:3px}
 .admin-notice-priority strong{color:#865148;font-size:10px}
 .admin-notice-priority small{color:#8a7773;font-size:9px}
+.admin-notice-form-title{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#344239;font-size:12px}
+.admin-notice-form-title .button{min-height:30px;padding:0 9px;font-size:9px}
+.admin-notice-schedule-toggle{display:flex;align-items:center;gap:11px;width:fit-content;max-width:100%;padding:11px 13px;border:1px solid #dce5da;border-radius:7px;background:#fff;cursor:pointer}
+.admin-notice-schedule-toggle input{width:17px;height:17px;flex:0 0 auto;accent-color:#52715e}
+.admin-notice-schedule-toggle span,.admin-notice-schedule-group>div:first-child{display:grid;gap:4px}
+.admin-notice-schedule-toggle strong,.admin-notice-schedule-group>div:first-child strong{color:#405349;font-size:10px}
+.admin-notice-schedule-toggle small,.admin-notice-schedule-group>div:first-child small{color:#7e8981;font-size:9px;line-height:1.5}
+.admin-notice-schedule-fields{display:grid;gap:12px;padding:14px;border:1px solid #e1e7df;border-radius:7px;background:#f3f6f1}
+.admin-notice-schedule-group{display:grid;grid-template-columns:minmax(170px,.8fr) minmax(260px,1.2fr);align-items:center;gap:16px}
+.admin-notice-schedule-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.admin-notice-schedule-inputs label{display:grid;gap:6px;color:#59675e;font-size:9px;font-weight:700}
+.admin-notice-schedule-inputs input{min-height:37px;padding:8px!important;font-size:10px!important}
 .admin-notice-form-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .admin-notice-form-footer>small{color:#8a938b;font-size:9px}
 .admin-notice-form-footer .button{min-height:38px;padding:0 13px;font-size:9px}
@@ -1087,9 +1099,11 @@ p{line-height:1.7}
 .admin-notice-priority-pill i{font-size:11px;font-style:normal;font-weight:800}
 .admin-notice-row-copy p{display:-webkit-box;margin:7px 0;color:#6f7a72;font-size:10px;line-height:1.6;overflow:hidden;overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:3}
 .admin-notice-row-copy time{color:#8b948d;font-size:8px}
+.admin-notice-schedule-summary{display:block;margin-top:6px;color:#526b58;font-size:9px;line-height:1.45}
 .admin-notice-row-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 .admin-notice-row-actions .button{min-height:34px;padding:0 9px;gap:6px;font-size:8px;white-space:nowrap}
 .admin-notice-empty{margin:0;padding:20px;border:1px dashed #dfe6dc;border-radius:6px;color:#7c877e;font-size:10px;text-align:center}
+@media(max-width:620px){.admin-notice-schedule-group{grid-template-columns:1fr;gap:10px}.admin-notice-schedule-inputs{grid-template-columns:1fr 1fr}.admin-notice-schedule-fields{padding:11px}}
 @media(max-width:620px){.home-notice-board{margin-bottom:42px;padding:14px}.home-notice-heading{align-items:flex-start}.home-notice-window{height:185px}.home-notice-card{grid-template-columns:1fr;gap:9px;padding:12px}.home-notice-card-copy p{-webkit-line-clamp:3}.notice-pdf-button{justify-self:start}.admin-notice-form{padding:14px}.admin-notice-row{grid-template-columns:1fr;gap:11px;padding:12px}.admin-notice-row-actions{justify-content:flex-start}.admin-notice-form-footer{align-items:flex-start;flex-direction:column}.admin-notice-form-footer .button{width:100%}}
 @media(prefers-reduced-motion:reduce){.home-notice-track,.notice-exclamation{animation:none}.home-notice-window{mask-image:none}}
 .public-holiday-calendar{width:100%;margin:20px auto 0;padding:clamp(18px,3vw,30px);border:1px solid var(--line);border-radius:10px;background:#fbfcfa;box-shadow:0 12px 34px #26352a08}
