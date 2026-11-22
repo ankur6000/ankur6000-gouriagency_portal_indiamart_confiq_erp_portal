@@ -19,6 +19,7 @@
     "@vitejs/plugin-react": "latest",
     "mongodb": "^7.9.0",
     "nodemailer": "^10.6.0",
+    "qrcode": "^1.5.4",
     "react": "latest",
     "react-dom": "latest",
     "vite": "latest"

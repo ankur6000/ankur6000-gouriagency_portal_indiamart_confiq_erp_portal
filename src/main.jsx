@@ -777,6 +777,78 @@ function indiaDateKey(value) {
   return `${parts.year}-${parts.month}-${parts.day}`
 }
 
+function indiaMonthKey(value) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return ''
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }).formatToParts(date).map(part => [part.type, part.value]))
+  return `${parts.year}-${parts.month}`
+}
+
+function getMonthlyFinanceRows(orders) {
+  const todayParts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit' }).formatToParts(new Date()).map(part => [part.type, part.value]))
+  const start = new Date(Date.UTC(Number(todayParts.year), Number(todayParts.month) - 1, 1))
+  const rows = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - 5 + index, 1))
+    return { key: date.toISOString().slice(0, 7), label: new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', month: 'short' }).format(date), billed: 0, collected: 0, orders: 0 }
+  })
+  const byMonth = new Map(rows.map(row => [row.key, row]))
+  for (const order of orders) {
+    const placed = byMonth.get(indiaMonthKey(order.date))
+    if (placed && order.status !== 'Cancelled') {
+      placed.billed += Number(order.amountDue || 0)
+      placed.orders++
+    }
+    for (const payment of order.payments || []) {
+      if (!['Paid', 'Verified'].includes(payment.status)) continue
+      const received = byMonth.get(indiaMonthKey(payment.paidAt || payment.reviewedAt || payment.submittedAt))
+      if (!received) continue
+      received.collected += Math.max(0, Number(payment.amountApplied ?? payment.amount ?? 0) - Number(payment.amountRefunded || 0))
+    }
+  }
+  return rows
+}
+
+function MonthlyFinanceChart({ orders, audience = 'admin' }) {
+  const rows = getMonthlyFinanceRows(orders)
+  const maxValue = Math.max(1, ...rows.flatMap(row => [row.billed, row.collected]))
+  const billedTotal = rows.reduce((total, row) => total + row.billed, 0)
+  const collectedTotal = rows.reduce((total, row) => total + row.collected, 0)
+  const prefix = audience === 'client' ? 'client' : 'admin'
+  return <article className={`admin-overview-chart monthly-finance-chart ${prefix}-monthly-finance-chart`}>
+    <div className="admin-overview-chart-heading"><div><span className="eyebrow">LAST 6 MONTHS</span><h3>Billing and collections</h3></div><strong>{formatMoney(collectedTotal)} collected</strong></div>
+    <div className="monthly-finance-legend"><span><i className="billed"/>Billed {formatMoney(billedTotal)}</span><span><i className="collected"/>Collected {formatMoney(collectedTotal)}</span><small>Collections use confirmed payments, less recorded refunds.</small></div>
+    <div className="monthly-finance-bars" role="img" aria-label={`Six month billing and net collections: ${rows.map(row => `${row.label}, billed ${formatMoney(row.billed)}, collected ${formatMoney(row.collected)}`).join('; ')}`}>
+      {rows.map(row => <div className="monthly-finance-column" key={row.key} title={`${row.label}: billed ${formatMoney(row.billed)}, collected ${formatMoney(row.collected)}, ${row.orders} orders`}>
+        <div className="monthly-finance-track"><i className="billed" style={{ height: `${row.billed ? Math.max(3, row.billed / maxValue * 100) : 0}%` }}/><i className="collected" style={{ height: `${row.collected ? Math.max(3, row.collected / maxValue * 100) : 0}%` }}/></div>
+        <strong>{row.label}</strong><span>{row.orders} order{row.orders === 1 ? '' : 's'}</span>
+      </div>)}
+    </div>
+  </article>
+}
+
+function ClientOverviewCharts({ orders }) {
+  const statuses = [
+    { label: 'In progress', color: '#a6bd84', count: orders.filter(order => ['In progress', 'Pending approval'].includes(order.status) && !order.approvedAt).length },
+    { label: 'Approved', color: '#658d72', count: orders.filter(order => order.status === 'Approved' || (order.status === 'In progress' && order.approvedAt)).length },
+    { label: 'Complete', color: '#49705b', count: orders.filter(order => order.status === 'Complete').length },
+    { label: 'Cancelled / rejected', color: '#c9877c', count: orders.filter(order => ['Cancelled', 'Rejected'].includes(order.status)).length }
+  ]
+  const total = statuses.reduce((sum, row) => sum + row.count, 0)
+  let cursor = 0
+  const slices = statuses.filter(row => row.count > 0).map(row => {
+    const from = cursor
+    cursor += row.count / Math.max(total, 1) * 100
+    return `${row.color} ${from}% ${cursor}%`
+  })
+  const statusBackground = total ? `conic-gradient(${slices.join(', ')})` : '#edf1eb'
+  return <section className="client-overview-graphs" aria-label="Your order and payment charts">
+    <article className="admin-overview-chart client-status-chart"><div className="admin-overview-chart-heading"><div><span className="eyebrow">ORDER SNAPSHOT</span><h3>Orders by status</h3></div><strong>{orders.length} total</strong></div>
+      <div className="client-status-chart-content"><div className="client-status-donut" role="img" aria-label={`${total} orders grouped by status`} style={{ background: statusBackground }}><div><strong>{total}</strong><span>orders</span></div></div><div className="admin-payment-donut-legend">{statuses.map(row => <span key={row.label}><i style={{ background: row.color }}/>{row.label}<strong>{row.count}</strong></span>)}</div></div>
+    </article>
+    <MonthlyFinanceChart orders={orders} audience="client"/>
+  </section>
+}
+
 function AdminOverviewCharts({ orders }) {
   const activeOrders = orders.filter(order => order.status !== 'Cancelled')
   const totals = summarizeOrderPayments(activeOrders)
@@ -801,6 +873,7 @@ function AdminOverviewCharts({ orders }) {
     <article className="admin-overview-chart sales-seven-day-chart"><div className="admin-overview-chart-heading"><div><span className="eyebrow">LAST 7 DAYS</span><h3>Daily sales</h3></div><strong>{formatMoney(dailySales.reduce((sum, item) => sum + item.sales, 0))}</strong></div><div className="admin-daily-bars" role="img" aria-label={`Daily sales for the last seven days: ${dailySales.map(item => `${item.label} ${formatMoney(item.sales)}`).join(', ')}`}>{dailySales.map(item => <div className="admin-daily-bar-column" key={item.key}><small>{item.sales ? formatMoney(item.sales) : '₹0'}</small><div className="admin-daily-bar-track"><i style={{ height: `${item.sales ? Math.max(8, item.sales / maxDailySales * 100) : 0}%` }}/></div><strong>{item.label}</strong><span>{item.count} order{item.count === 1 ? '' : 's'}</span></div>)}</div></article>
     <article className="admin-overview-chart admin-payment-chart"><div className="admin-overview-chart-heading"><div><span className="eyebrow">COLLECTION STATUS</span><h3>Paid vs outstanding</h3></div></div><div className="admin-payment-donut-row"><div className="admin-payment-donut" role="img" aria-label={`${paidPercent.toFixed(0)} percent of recorded dues paid`} style={{ background: `conic-gradient(#5f806a 0% ${paidPercent}%, #e9eee7 ${paidPercent}% 100%)` }}><div><strong>{paidPercent.toFixed(0)}%</strong><span>paid</span></div></div><div className="admin-payment-donut-legend"><span><i className="paid"/>Paid<strong>{formatMoney(totals.paid)}</strong></span><span><i className="outstanding"/>Outstanding<strong>{formatMoney(totals.outstanding)}</strong></span><small>Across {activeOrders.length} active orders</small></div></div></article>
     <article className="admin-overview-chart admin-order-status-chart"><div className="admin-overview-chart-heading"><div><span className="eyebrow">WORK QUEUE</span><h3>Orders by status</h3></div><strong>{orders.length} total</strong></div><div className="admin-status-bars">{statusRows.map(item => <div className="admin-status-bar-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${item.count / maxStatusCount * 100}%`, backgroundColor: item.color }}/></div><strong>{item.count}</strong></div>)}</div></article>
+    <MonthlyFinanceChart orders={orders}/>
   </section>
 }
 
@@ -3055,7 +3128,7 @@ function App() {
         <DashboardTabBar tabs={clientDashboardTabs} active={clientTab} idPrefix="client-dashboard" label="Client dashboard sections" onChange={setClientTab}/>
         {clientPromoCode?.enabled && clientPromoCode.code && <aside className="client-promo-banner"><span aria-hidden="true">{clientPromoCode.emoji || '🎉'}</span><div><strong>{clientPromoCode.discountType === 'percent' ? `${clientPromoCode.discountValue}% off` : `${formatMoney(clientPromoCode.discountValue)} off`} with promo code {clientPromoCode.code}</strong><small>Enter this code in an eligible order’s payment section to deduct the discount from its outstanding balance.</small></div></aside>}
         <div className="dashboard-tab-panel" id="client-dashboard-panel" role="tabpanel" tabIndex={0} aria-labelledby={`client-dashboard-${clientTab}-tab`}>
-        {clientTab === 'overview' && <section className="dash-panel client-overview-panel"><div className="panel-heading"><div><span className="eyebrow">ACCOUNT OVERVIEW</span><h2>Your balance at a glance</h2></div><Package size={22}/></div><PaymentSummary orders={clientOrders} title="Your overall balance" className="client-payment-overview"/><div className="dashboard-overview-actions"><button type="button" className="button dark" onClick={() => setClientTab('orders')}>View orders and payments <ArrowRight size={14}/></button><button type="button" className="button outline" onClick={() => setClientTab('statements')}>Email a statement <ArrowRight size={14}/></button></div></section>}
+        {clientTab === 'overview' && <section className="dash-panel client-overview-panel"><div className="panel-heading"><div><span className="eyebrow">ACCOUNT OVERVIEW</span><h2>Your balance at a glance</h2></div><Package size={22}/></div><PaymentSummary orders={clientOrders} title="Your overall balance" className="client-payment-overview"/><ClientOverviewCharts orders={clientOrders}/><div className="dashboard-overview-actions"><button type="button" className="button dark" onClick={() => setClientTab('orders')}>View orders and payments <ArrowRight size={14}/></button><button type="button" className="button outline" onClick={() => setClientTab('statements')}>Email a statement <ArrowRight size={14}/></button></div></section>}
         {clientTab === 'orders' && <div className="dash-panel client-orders-panel">
           <div className="panel-heading"><div><span className="eyebrow">ORDERS & PAYMENTS</span><h2>Your orders and dues</h2></div><Package size={22}/></div>
           <PaymentSummary orders={clientOrders} title="Your overall balance" className="client-payment-overview"/>

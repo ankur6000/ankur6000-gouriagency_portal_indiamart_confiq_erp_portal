@@ -1,4 +1,5 @@
 import { deflateSync, inflateSync } from 'node:zlib'
+import QRCode from 'qrcode'
 
 const W = 595
 const H = 842
@@ -373,26 +374,60 @@ export function createPaymentReceiptPdf({ profile, order, payment, generatedAt =
     wrap(value || '-', 75).slice(0, 2).forEach((line, index) => text(M, top + 13 + index * 11, line, 9, 'F1', INK))
     rule(top + 38, [0.90, 0.92, 0.89])
   }
+  const paymentReference = payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || payment.cashfreePaymentId || payment.cashfreeOrderId || '-'
+  const receivedAmount = Number(payment.transactionAmount ?? payment.amount ?? 0)
+  const appliedAmount = Number(payment.amountApplied ?? payment.amount ?? 0)
+  const qrPayload = [
+    'GOURI AGENCY PAYMENT RECEIPT',
+    `Receipt:${payment.id || paymentReference}`,
+    `Order:${order.id || '-'}`,
+    `GSTIN:${profile.gstNumber || order.gstNumber || '-'}`,
+    `Ref:${paymentReference}`,
+    `Received:INR ${receivedAmount.toFixed(2)}`,
+    `Credited:INR ${appliedAmount.toFixed(2)}`,
+    `Date:${dateTime(payment.paidAt || payment.reviewedAt || payment.submittedAt)} IST`
+  ].join('|')
+  const qr = QRCode.create(qrPayload, { errorCorrectionLevel: 'M' }).modules
+  const drawQr = (x, top, boxSize) => {
+    const quiet = 4
+    const moduleSize = boxSize / (qr.size + quiet * 2)
+    fill(x, top, boxSize, boxSize, [1, 1, 1])
+    const modules = []
+    for (let row = 0; row < qr.size; row++) {
+      for (let col = 0; col < qr.size;) {
+        if (!qr.get(row, col)) { col++; continue }
+        const start = col
+        while (col < qr.size && qr.get(row, col)) col++
+        const left = x + (quiet + start) * moduleSize
+        const y = H - (top + (quiet + row + 1) * moduleSize)
+        const runWidth = ((col - start) * moduleSize).toFixed(3)
+        modules.push(`${left.toFixed(3)} ${y.toFixed(3)} ${runWidth} ${moduleSize.toFixed(3)} re`)
+      }
+    }
+    page.push(`0.12 0.17 0.15 rg ${modules.join(' ')} f`)
+    page.push(`${rgb(LINE)} RG 0.55 w ${x} ${H - top - boxSize} ${boxSize} ${boxSize} re S`)
+    text(x - 1, top + boxSize + 5, 'SCAN FOR PAYMENT REFERENCE', 5.4, 'F2', MUTED)
+  }
   fill(0, 0, W, 130, GREEN)
   text(M, 25, 'GOURI AGENCY  |  PAYMENT CONFIRMATION', 8, 'F2', [0.91, 0.95, 0.91])
   text(M, 50, 'PAYMENT RECEIPT', 23, 'F2', [1, 1, 1])
   text(M, 88, 'Digitally generated receipt for a payment recorded against the customer account.', 8, 'F1', [0.91, 0.95, 0.91])
-  fill(426, 153, 131, 75, SOFT)
-  text(438, 165, 'RECEIPT REFERENCE', 6.5, 'F2', MUTED)
-  text(438, 181, payment.id || '-', 11, 'F2', GREEN)
-  text(M, 153, profile.shopName || order.shopName || 'Customer', 14, 'F2', INK)
-  text(M, 176, `GSTIN: ${profile.gstNumber || order.gstNumber || '-'}`, 8, 'F1', MUTED)
-  text(M, 191, `Drug license: ${profile.drugLicenseNumber || order.drugLicenseNumber || '-'}  |  Expires: ${profile.drugLicenseExpiresAt || order.drugLicenseExpiresAt || 'Not recorded'}`, 8, 'F1', MUTED)
-  text(M, 206, `${profile.email || order.email || '-'}  |  ${profile.mobile || order.mobile || '-'}`, 8, 'F1', MUTED)
+  drawQr(458, 150, 96)
+  fill(426, 252, 131, 44, SOFT)
+  text(438, 260, 'RECEIPT REFERENCE', 6.5, 'F2', MUTED)
+  text(438, 274, payment.id || '-', 9.5, 'F2', GREEN)
+  wrap(profile.shopName || order.shopName || 'Customer', 53).slice(0, 2).forEach((line, index) => text(M, 153 + index * 15, line, 13, 'F2', INK))
+  text(M, 187, `GSTIN: ${profile.gstNumber || order.gstNumber || '-'}`, 8, 'F1', MUTED)
+  text(M, 202, `Drug license: ${profile.drugLicenseNumber || order.drugLicenseNumber || '-'}  |  Expires: ${profile.drugLicenseExpiresAt || order.drugLicenseExpiresAt || 'Not recorded'}`, 7.2, 'F1', MUTED)
+  text(M, 217, `${profile.email || order.email || '-'}  |  ${profile.mobile || order.mobile || '-'}`, 7.5, 'F1', MUTED)
   text(M, 230, 'PAYMENT DETAILS', 8.5, 'F2', GREEN)
   rule(248, GREEN)
   field('Order number', order.id, 264)
   field('Payment date and time (IST)', dateTime(payment.paidAt || payment.reviewedAt || payment.submittedAt), 309)
   field('Payment method', payment.originalProvider || payment.provider || 'Payment', 354)
-  field('Transaction / bank reference', payment.reference || payment.razorpayPaymentId || payment.razorpayOrderId || '-', 399)
+  field('Transaction / bank reference', paymentReference, 399)
   field('Payment status', payment.status === 'Paid' ? 'Captured' : payment.status, 444)
   const due = Number(order.amountDue || 0), paid = Number(order.amountPaid || 0)
-  const appliedAmount = Number(payment.amountApplied ?? payment.amount ?? 0)
   const carryForward = (payment.allocations || []).filter(allocation => allocation.role === 'carry-forward')
   const carryText = carryForward.length
     ? `Applied to ${order.id}: ${money(appliedAmount)}. Carried forward: ${carryForward.map(allocation => `${allocation.orderId} ${money(allocation.amount)}`).join('; ')}`
