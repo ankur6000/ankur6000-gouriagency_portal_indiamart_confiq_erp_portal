@@ -11,6 +11,7 @@ import './styles.css'
 const API = '/api'
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 const MAX_HOME_SLIDER_IMAGE_BYTES = 2 * 1024 * 1024
+const MAX_BULK_ORDER_FILE_BYTES = 10 * 1024 * 1024
 
 async function readApiJson(response, fallbackMessage = 'The portal returned an unexpected response.') {
   const contentType = response.headers.get('content-type') || ''
@@ -22,6 +23,183 @@ async function readApiJson(response, fallbackMessage = 'The portal returned an u
   } catch {
     throw new Error(fallbackMessage)
   }
+}
+
+function parseCsvRows(source) {
+  const text = String(source || '').replace(/^\uFEFF/, '')
+  const firstLine = text.split(/\r?\n/, 1)[0] || ''
+  const delimiter = !firstLine.includes(',') && firstLine.includes(';') ? ';' : ','
+  const rows = []
+  let row = []; let field = ''; let quoted = false
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]
+    if (quoted) {
+      if (character === '"' && text[index + 1] === '"') { field += '"'; index++ }
+      else if (character === '"') quoted = false
+      else field += character
+    } else if (character === '"' && field.length === 0) quoted = true
+    else if (character === delimiter) { row.push(field); field = '' }
+    else if (character === '\n' || character === '\r') {
+      if (character === '\r' && text[index + 1] === '\n') index++
+      row.push(field); rows.push(row); row = []; field = ''
+    } else field += character
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row) }
+  return rows
+}
+
+function zipEntriesFromXlsx(buffer) {
+  const view = new DataView(buffer)
+  const minEnd = Math.max(0, view.byteLength - 65_557)
+  let endRecord = -1
+  for (let offset = view.byteLength - 22; offset >= minEnd; offset--) {
+    if (view.getUint32(offset, true) === 0x06054b50) { endRecord = offset; break }
+  }
+  if (endRecord < 0) throw new Error('This Excel workbook could not be read. Save it as .xlsx or upload a CSV file.')
+  const count = view.getUint16(endRecord + 10, true)
+  let offset = view.getUint32(endRecord + 16, true)
+  const decoder = new TextDecoder()
+  const entries = new Map()
+  for (let index = 0; index < count; index++) {
+    if (view.getUint32(offset, true) !== 0x02014b50) throw new Error('This Excel workbook has an invalid file table.')
+    const method = view.getUint16(offset + 10, true)
+    const compressedSize = view.getUint32(offset + 20, true)
+    const uncompressedSize = view.getUint32(offset + 24, true)
+    const nameLength = view.getUint16(offset + 28, true)
+    const extraLength = view.getUint16(offset + 30, true)
+    const commentLength = view.getUint16(offset + 32, true)
+    const localOffset = view.getUint32(offset + 42, true)
+    const name = decoder.decode(new Uint8Array(buffer, offset + 46, nameLength))
+    entries.set(name, { method, compressedSize, uncompressedSize, localOffset })
+    offset += 46 + nameLength + extraLength + commentLength
+  }
+  return entries
+}
+
+async function readXlsxEntry(buffer, entries, name) {
+  const entry = entries.get(name)
+  if (!entry) return null
+  if (entry.uncompressedSize > 25 * 1024 * 1024) throw new Error('The Excel sheet is too large to import safely.')
+  const view = new DataView(buffer)
+  const local = entry.localOffset
+  if (view.getUint32(local, true) !== 0x04034b50) throw new Error('This Excel workbook contains an invalid sheet.')
+  const dataOffset = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true)
+  const compressed = buffer.slice(dataOffset, dataOffset + entry.compressedSize)
+  if (entry.method === 0) return new TextDecoder().decode(compressed)
+  if (entry.method !== 8 || typeof DecompressionStream === 'undefined') throw new Error('This browser cannot open this Excel workbook. Save it as CSV and upload the CSV instead.')
+  try {
+    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+    return new TextDecoder().decode(await new Response(stream).arrayBuffer())
+  } catch { throw new Error('Could not decompress this Excel workbook. Save it as CSV and upload the CSV instead.') }
+}
+
+function xmlElements(parent, localName) {
+  return [...parent.getElementsByTagName('*')].filter(element => element.localName === localName)
+}
+
+function xmlText(parent) {
+  return xmlElements(parent, 't').map(element => element.textContent || '').join('')
+}
+
+async function parseXlsxRows(file) {
+  const buffer = await file.arrayBuffer()
+  const entries = zipEntriesFromXlsx(buffer)
+  const workbookText = await readXlsxEntry(buffer, entries, 'xl/workbook.xml')
+  if (!workbookText) throw new Error('The Excel workbook does not contain a readable worksheet.')
+  const workbook = new DOMParser().parseFromString(workbookText, 'application/xml')
+  if (workbook.getElementsByTagName('parsererror').length) throw new Error('The Excel workbook has invalid worksheet metadata.')
+  const firstSheet = xmlElements(workbook, 'sheet')[0]
+  const relationshipId = firstSheet?.getAttribute('r:id') || firstSheet?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')
+  const relationshipsText = await readXlsxEntry(buffer, entries, 'xl/_rels/workbook.xml.rels')
+  let worksheetPath = 'xl/worksheets/sheet1.xml'
+  if (relationshipId && relationshipsText) {
+    const relationships = new DOMParser().parseFromString(relationshipsText, 'application/xml')
+    const relationship = xmlElements(relationships, 'Relationship').find(item => item.getAttribute('Id') === relationshipId)
+    if (relationship?.getAttribute('Target')) {
+      const target = relationship.getAttribute('Target').replace(/^\//, '')
+      worksheetPath = target.startsWith('xl/') ? target : `xl/${target.replace(/^\.\//, '')}`
+    }
+  }
+  const sheetText = await readXlsxEntry(buffer, entries, worksheetPath)
+  if (!sheetText) throw new Error('The first worksheet could not be found in this Excel workbook.')
+  const sheet = new DOMParser().parseFromString(sheetText, 'application/xml')
+  if (sheet.getElementsByTagName('parsererror').length) throw new Error('The first worksheet contains invalid data.')
+  const sharedText = await readXlsxEntry(buffer, entries, 'xl/sharedStrings.xml')
+  const sharedStrings = sharedText ? xmlElements(new DOMParser().parseFromString(sharedText, 'application/xml'), 'si').map(xmlText) : []
+  const rows = []
+  for (const rowElement of xmlElements(sheet, 'row')) {
+    const row = []
+    for (const cell of [...rowElement.children].filter(element => element.localName === 'c')) {
+      const letters = (cell.getAttribute('r') || '').match(/^[A-Z]+/i)?.[0] || ''
+      let column = 0
+      for (const letter of letters.toUpperCase()) column = column * 26 + letter.charCodeAt(0) - 64
+      column--
+      const valueElement = [...cell.children].find(element => element.localName === 'v')
+      const inlineElement = [...cell.children].find(element => element.localName === 'is')
+      let value = valueElement?.textContent || (inlineElement ? xmlText(inlineElement) : '')
+      if (cell.getAttribute('t') === 's') value = sharedStrings[Number(value)] ?? ''
+      if (column >= 0) row[column] = value
+    }
+    rows.push(row)
+  }
+  return rows
+}
+
+function toMedicineOrderRows(rows) {
+  const nonEmpty = rows.filter(row => row.some(value => String(value ?? '').trim()))
+  if (!nonEmpty.length) throw new Error('No medicine rows were found. Add “Medicine name” and “Quantity” columns to the sheet.')
+  const normalizeHeading = value => String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const names = new Set(['medicinename', 'medicine', 'productname', 'product', 'itemname', 'item', 'drugname'])
+  const quantities = new Set(['quantity', 'qty', 'quantitypcs', 'quantityboxes', 'quantityboxespcs', 'pcs', 'boxes'])
+  const header = nonEmpty[0].map(normalizeHeading)
+  const nameColumn = header.findIndex(value => names.has(value))
+  const quantityColumn = header.findIndex(value => quantities.has(value))
+  const hasHeader = nameColumn >= 0 && quantityColumn >= 0
+  const dataRows = hasHeader ? nonEmpty.slice(1) : nonEmpty
+  const nameIndex = hasHeader ? nameColumn : 0
+  const quantityIndex = hasHeader ? quantityColumn : 1
+  const items = dataRows.map(row => ({ name: String(row[nameIndex] ?? '').trim(), quantity: String(row[quantityIndex] ?? '').trim() }))
+    .filter(item => item.name || item.quantity)
+  if (!items.length) throw new Error('No medicine entries were found beneath the column headings.')
+  if (items.length > 100) throw new Error('A single order can contain up to 100 medicine rows. Split this sheet into smaller orders.')
+  const incomplete = items.findIndex(item => !item.name || !item.quantity || !/^[A-Za-z0-9][A-Za-z0-9 ./-]{0,59}$/.test(item.quantity))
+  if (incomplete >= 0) throw new Error(`Check spreadsheet row ${incomplete + (hasHeader ? 2 : 1)}: enter a medicine name and a quantity of up to 60 letters, numbers, spaces, dots, slashes, or hyphens.`)
+  return items
+}
+
+function ClientBulkOrderUpload({ disabled, onImport, resetToken }) {
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState(false)
+  useEffect(() => { setMessage(''); setError(false) }, [resetToken])
+  const importFile = async event => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setMessage(''); setError(false)
+    try {
+      if (file.size > MAX_BULK_ORDER_FILE_BYTES) throw new Error('Choose a CSV or Excel file up to 10 MB.')
+      const extension = file.name.split('.').pop().toLowerCase()
+      if (!['csv', 'xlsx'].includes(extension)) throw new Error('Upload a .csv or modern Excel .xlsx file.')
+      const rows = extension === 'csv' ? parseCsvRows(await file.text()) : await parseXlsxRows(file)
+      const items = toMedicineOrderRows(rows)
+      onImport(items)
+      setMessage(`${items.length} medicine rows imported. Review and edit them below, then submit the order for approval.`)
+    } catch (importError) {
+      setMessage(importError.message || 'Could not read this order sheet.')
+      setError(true)
+    } finally { event.target.value = '' }
+  }
+  const downloadTemplate = () => {
+    const blob = new Blob(['Medicine name,Quantity\r\n'], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url; link.download = 'Gouri-Agency-order-template.csv'; link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+  return <section className="bulk-order-upload" aria-label="Import medicine order spreadsheet">
+    <div><strong>Import an order sheet</strong><small>Upload CSV or Excel (.xlsx) with “Medicine name” and “Quantity” columns. The first sheet is imported and stays editable before you submit.</small></div>
+    <div className="bulk-order-upload-actions"><label className="button outline" aria-disabled={disabled}>Choose CSV / Excel<input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={disabled} onChange={importFile}/></label><button type="button" className="text-button" disabled={disabled} onClick={downloadTemplate}>Download CSV template</button></div>
+    {message && <small className={`bulk-order-upload-message${error ? ' error' : ''}`} role={error ? 'alert' : 'status'}>{message}</small>}
+  </section>
 }
 
 function encodeUpload(file, label, acceptedTypes, maxBytes = MAX_UPLOAD_BYTES) {
@@ -2237,6 +2415,7 @@ function App() {
   const [orderNotice, setOrderNotice] = useState('')
   const [updatingOrder, setUpdatingOrder] = useState('')
   const [items, setItems] = useState([{ name: '', quantity: '' }])
+  const [bulkImportReset, setBulkImportReset] = useState(0)
   const [gstVerification, setGstVerification] = useState(null)
   const [gstLookupStatus, setGstLookupStatus] = useState({ state: 'idle', message: '' })
   const gstLookupAttemptRef = useRef('')
@@ -2665,6 +2844,7 @@ function App() {
       setNotice(`Order ${data.order.id} submitted and is waiting for admin approval.${downloaded ? ' Your order and profile PDF was downloaded.' : ''}${emailMessage}`); formElement.reset()
       notifyActionSuccess(`Order ${data.order.id} submitted and is awaiting admin approval.`)
       setItems([{ name: '', quantity: '' }])
+      if (quickClientOrder) setBulkImportReset(value => value + 1)
       setBusinessType('')
       setPartnerOneName(''); setPartnerTwoName(''); setAuthorizedSignatoryPartner('')
       setPartnerUploadOpen(false); setPartnerPhotoReady(false); setPartnerPhotoFileName('')
@@ -3064,6 +3244,7 @@ function App() {
         <div className="quick-order-profile-summary"><strong>{user.profile.shopName}</strong><span>GSTIN: {user.profile.gstNumber}</span><small>Profile details, regulatory documents, and saved signature are reused for this order.</small></div>
         <form className="order-form quick-order-form" onSubmit={submitOrder}>
           <fieldset className="order-form-fields" disabled={!orderIntakeSettings.enabled || Boolean(user.profile.profileFrozen)}>
+            <ClientBulkOrderUpload resetToken={bulkImportReset} disabled={!orderIntakeSettings.enabled || Boolean(user.profile.profileFrozen) || busy} onImport={importedItems => setItems(importedItems)}/>
             <section className="medicine-section" aria-label="Medicine items">
               <div className="medicine-heading"><div><h2>Medicine items</h2><p>Add a row for each medicine. Quantity can be boxes, pieces, or a combination.</p></div><button className="button outline add-item" type="button" onClick={() => setItems(prev => [...prev, { name: '', quantity: '' }])}><Plus size={15}/> Add item</button></div>
               <div className="medicine-table-head"><span>Medicine name <RequiredMark/></span><span>Quantity / pcs <RequiredMark/></span><span className="sr-only">Remove item</span></div>
@@ -3158,7 +3339,7 @@ function App() {
 
       {page === 'payment-success' && user?.role === 'client' && paymentSuccess && <PaymentSuccessPage details={paymentSuccess} token={user.token} email={user.profile?.email || user.email} onReturn={() => { setClientTab('orders'); go('client') }}/>}
 
-      {page === 'client' && <main className="inner-page dashboard"><div className="dash-head"><div><div className="eyebrow"><span className="live-dot"/> CLIENT WORKSPACE</div><h1 className="inner-title">Hello, <em>{user?.name || 'there'}.</em></h1><p className="inner-lede">Manage your profile, place orders, and track each request here.</p></div><div className="dashboard-head-tools"><DashboardClock/><div className="workspace-actions"><button className="button dark" disabled={Boolean(user?.profile?.profileFrozen)} onClick={() => go('orders')}>Place order <Plus size={16}/></button><button className="button outline" onClick={logout}>Sign out</button></div></div></div>
+      {page === 'client' && <main className="inner-page dashboard"><div className="dash-head"><div><div className="eyebrow"><span className="live-dot"/> CLIENT WORKSPACE</div><h1 className="inner-title">Hello, <em>{user?.name || 'there'}.</em></h1><p className="inner-lede">Manage your profile, place orders, and track each request here.</p></div><div className="dashboard-head-tools"><DashboardClock/><div className="workspace-actions"><button className="button dark" disabled={Boolean(user?.profile?.profileFrozen)} onClick={() => go('orders')}>Place order <Plus size={16}/></button><button className="button outline" disabled={Boolean(user?.profile?.profileFrozen)} onClick={() => go('orders')}>Bulk upload <ArrowUpRight size={15}/></button><button className="button outline" onClick={logout}>Sign out</button></div></div></div>
         <DashboardTabBar tabs={clientDashboardTabs} active={clientTab} idPrefix="client-dashboard" label="Client dashboard sections" onChange={setClientTab}/>
         {clientPromoCode?.enabled && clientPromoCode.code && <aside className="client-promo-banner"><span aria-hidden="true">{clientPromoCode.emoji || '🎉'}</span><div><strong>{clientPromoCode.discountType === 'percent' ? `${clientPromoCode.discountValue}% off` : `${formatMoney(clientPromoCode.discountValue)} off`} with promo code {clientPromoCode.code}</strong><small>Enter this code in an eligible order’s payment section to deduct the discount from its outstanding balance.</small></div></aside>}
         <div className="dashboard-tab-panel" id="client-dashboard-panel" role="tabpanel" tabIndex={0} aria-labelledby={`client-dashboard-${clientTab}-tab`}>

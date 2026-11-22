@@ -825,10 +825,22 @@ html,body{overflow-x:clip}
 .quick-order-form .medicine-heading{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .quick-order-form .medicine-heading h2{margin:0 0 5px;font-size:17px}
 .quick-order-form .medicine-heading p{margin:0;color:#7b857e;font-size:10px;line-height:1.6}
+.bulk-order-upload{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px 16px;padding:14px 15px;border:1px dashed #cfd9ca;border-radius:7px;background:#f4f7f2}
+.bulk-order-upload>div:first-child{display:flex;flex-direction:column;gap:4px}
+.bulk-order-upload>div:first-child strong{color:#34463a;font-size:11px}
+.bulk-order-upload>div:first-child small{color:#7a867c;font-size:9px;line-height:1.5}
+.bulk-order-upload-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.bulk-order-upload-actions>label{position:relative;min-height:36px;padding:0 11px;cursor:pointer;font-size:9px}
+.bulk-order-upload-actions input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.bulk-order-upload-actions>label[aria-disabled=true]{opacity:.55;cursor:not-allowed}
+.bulk-order-upload-actions>label[aria-disabled=true] input{cursor:not-allowed}
+.bulk-order-upload-actions>.text-button{font-size:9px;white-space:nowrap}
+.bulk-order-upload-message{grid-column:1/-1;color:#4e7054;font-size:9px;line-height:1.55}
+.bulk-order-upload-message.error{color:#a6453d}
 .quick-order-form .medicine-table-head{grid-template-columns:minmax(0,1fr) minmax(135px,.55fr) 38px}
 .quick-order-form .quick-order-terms{margin:0;color:#6e7a71;font-size:10px;line-height:1.6}
 .quick-order-form>.order-form-fields>.button{align-self:flex-start;min-width:205px}
-@media(max-width:600px){.quick-order-form{padding:15px}.quick-order-form .medicine-heading{align-items:flex-start;flex-direction:column}.quick-order-form .medicine-table-head{grid-template-columns:minmax(0,1fr) minmax(94px,.7fr) 34px;font-size:8px}.quick-order-form>.order-form-fields>.button{width:100%}}
+@media(max-width:600px){.quick-order-form{padding:15px}.quick-order-form .medicine-heading{align-items:flex-start;flex-direction:column}.quick-order-form .medicine-table-head{grid-template-columns:minmax(0,1fr) minmax(94px,.7fr) 34px;font-size:8px}.quick-order-form>.order-form-fields>.button{width:100%}.bulk-order-upload{grid-template-columns:1fr}.bulk-order-upload-actions{align-items:flex-start;flex-direction:column;gap:8px}.bulk-order-upload-message{grid-column:auto}}
 @media(prefers-reduced-motion:reduce){.order-intake-closed-notice{animation:none;box-shadow:0 0 0 2px #b4231830;background:#ffe8e5}}
 @media(min-width:601px) and (max-width:1100px){.topbar{position:relative}.mobile-menu{display:block;padding:8px}.topbar nav{display:none;position:absolute;z-index:20;top:100%;left:0;right:0;padding:18px 22px 22px;border:1px solid var(--line);border-top:0;background:#f7f8f6;box-shadow:0 12px 16px #2533270b;align-items:stretch;gap:14px;flex-direction:column}.topbar nav.open{display:flex}.topbar nav button{font-size:12px;padding:4px 0}.topbar nav .nav-login{justify-content:center;margin:0;padding:13px}}
 .order-page{width:min(100%,760px);min-width:0}
