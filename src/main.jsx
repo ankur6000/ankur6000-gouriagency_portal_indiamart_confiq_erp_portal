@@ -799,7 +799,14 @@ function DocumentLinks({ attachments, profileId, token, onView }) {
 function maskProfileValue(value) {
   const text = String(value || '').trim()
   if (!text) return 'Not provided'
-  return text.split(/(\s+)/).map(part => /^\s+$/.test(part) ? part : [...part].join('*')).join('')
+  let visibleCharacters = 4
+  const characters = [...text]
+  for (let index = characters.length - 1; index >= 0; index--) {
+    if (!/[\p{L}\p{N}]/u.test(characters[index])) continue
+    if (visibleCharacters > 0) visibleCharacters--
+    else characters[index] = '*'
+  }
+  return characters.join('')
 }
 
 function ClientProfileDetails({ profile, token, onSaved, onViewDocument }) {
@@ -815,7 +822,7 @@ function ClientProfileDetails({ profile, token, onSaved, onViewDocument }) {
     ['Drug license expiry date', profile.drugLicenseExpiresAt]
   ]
   return <section className="client-profile-readonly" aria-label="Masked profile details">
-    <div className="client-profile-readonly-heading"><div className="profile-editor-intro"><ProfileAvatar profile={profile} token={token} alt="Client profile"/><div><strong>Profile information</strong><p>Details are masked in this view. Use the pencil to edit your profile.</p></div></div><button type="button" className="button outline profile-pencil-button" aria-label="Edit profile details" title="Edit profile details" onClick={() => setEditing(true)}><Pencil size={15}/> Edit</button></div>
+    <div className="client-profile-readonly-heading"><div className="profile-editor-intro"><ProfileAvatar profile={profile} token={token} alt="Client profile"/><div><strong>Profile information</strong><p>Only the last four letters or digits are shown. Use Edit to view or change your details.</p></div></div><button type="button" className="button outline profile-pencil-button" aria-label="Edit profile details" title="Edit profile details" onClick={() => setEditing(true)}><Pencil size={15}/> Edit</button></div>
     <dl className="client-profile-masked-grid">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{maskProfileValue(value)}</dd></div>)}</dl>
     {profile.profileFrozen && <div className="license-freeze-alert" role="status"><strong>Profile frozen</strong><span>{profile.drugLicenseExpiryMissing ? 'Drug license expiry is missing.' : `Drug license expired on ${profile.drugLicenseExpiresAt}.`} Contact the agency for any update that requires admin action.</span></div>}
     <DocumentLinks attachments={profile.attachments} profileId={profile.id} token={token} onView={onViewDocument}/>
