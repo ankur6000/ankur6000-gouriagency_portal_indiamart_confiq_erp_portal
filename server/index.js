@@ -2599,7 +2599,13 @@ const server = http.createServer(async (req, res) => {
     if (!isAdmin && !profile && !identifier.includes('@')) return json(res, 401, { error: 'No registered profile matches that phone number or GST number.' })
     const token = randomUUID()
     if (isAdmin) adminSessions.add(token)
-    else clientSessions.set(token, profile?.id || null)
+    else {
+      clientSessions.set(token, profile?.id || null)
+      if (profile) {
+        profile.lastLoginAt = new Date().toISOString()
+        await persistPortalState().catch(error => console.error('Could not save the client last-login timestamp:', error.message))
+      }
+    }
     const email = profile?.email || identifier
     return json(res, 200, { user: { name: isAdmin ? 'Gouri Admin' : (profile?.ownerName || profile?.shopName || email.split('@')[0]), email, role: isAdmin ? 'admin' : 'client', token, profile: dashboardProfile(profile) } })
   }
