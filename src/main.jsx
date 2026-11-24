@@ -3544,7 +3544,7 @@ function App() {
             <div className="contact-detail-list">{[
               ['8250589982', '918250589982'],
               ['8250558137', '918250558137']
-            ].map(([phone, whatsappNumber]) => <a key={phone} href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('*Hi, I am an IndiaMART customer.*')}`} target="_blank" rel="noopener noreferrer"><span className="contact-method-value"><WhatsApp size={21}/>{phone}</span><ArrowUpRight size={14}/></a>)}</div>
+            ].map(([phone, whatsappNumber]) => <a key={phone} href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('*Hi, I am an IndiaMART customer.*')}`} target="_blank" rel="noopener noreferrer"><span className="contact-method-value"><WhatsApp size={15}/>{phone}</span><ArrowUpRight size={14}/></a>)}</div>
           </section>
           <section className="contact-card contact-card-wide">
             <span className="contact-kicker">VISIT THE SHOP</span>
