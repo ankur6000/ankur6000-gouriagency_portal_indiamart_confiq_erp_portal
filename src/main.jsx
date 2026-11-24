@@ -3448,7 +3448,7 @@ function App() {
         </nav>
       </header>
 
-      {page === 'orders' && !orderDisclaimerAccepted && <OrderRequestDisclaimer onAgree={() => setOrderDisclaimerAccepted(true)} onDisagree={() => go('home')}/>}
+      {page === 'orders' && user?.role !== 'client' && !orderDisclaimerAccepted && <OrderRequestDisclaimer onAgree={() => setOrderDisclaimerAccepted(true)} onDisagree={() => go('home')}/>}
 
       {page === 'home' && <HomeImageSlider/>}
       {page === 'holidays' && <main className="holiday-page"><PublicHolidayCalendar/></main>}
@@ -3571,7 +3571,7 @@ function App() {
         </section>
       </main>}
 
-      {page === 'orders' && orderDisclaimerAccepted && user?.role === 'client' && user.profile && <main className="inner-page order-page quick-client-order-page">
+      {page === 'orders' && user?.role === 'client' && user.profile && <main className="inner-page order-page quick-client-order-page">
         <div className="eyebrow"><span className="live-dot"/> NEW CLIENT ORDER</div>
         <h1 className="inner-title">Place a new<br/><em>order.</em></h1>
         <p className="inner-lede">Add the medicines and quantities. Your saved shop profile and documents will be attached automatically.</p>
@@ -3599,7 +3599,7 @@ function App() {
         </form>
       </main>}
 
-      {page === 'orders' && orderDisclaimerAccepted && !(user?.role === 'client' && user.profile) && <main className="inner-page order-page">
+      {page === 'orders' && (user?.role === 'client' || orderDisclaimerAccepted) && !(user?.role === 'client' && user.profile) && <main className="inner-page order-page">
         <div className="eyebrow"><span className="live-dot"/> ORDER REQUEST</div>
         <h1 className="inner-title">Shop order<br /><em>details.</em></h1>
         <p className="inner-lede">Add your shop information, medicine items, and required documents.</p>
