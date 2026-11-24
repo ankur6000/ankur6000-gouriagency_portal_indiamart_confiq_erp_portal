@@ -346,6 +346,7 @@ function normalizePortalState(state = {}) {
     paymentSettings: normalizePaymentSettings(state.paymentSettings),
     emailSettings: normalizeEmailSettings(state.emailSettings),
     adminCredentials: normalizeAdminCredentialRecord(state.adminCredentials),
+    adminLastLoginAt: typeof state.adminLastLoginAt === 'string' && Number.isFinite(Date.parse(state.adminLastLoginAt)) ? state.adminLastLoginAt : '',
     homeSlider: normalizeHomeSlider(state.homeSlider),
     notices: normalizeHomeNotices(state.notices),
     nextEmailSerial: Number.isSafeInteger(state.nextEmailSerial) && state.nextEmailSerial >= 100000000000000 && state.nextEmailSerial <= 999999999999999 ? state.nextEmailSerial : null,
@@ -383,6 +384,7 @@ const processedCashfreeEvents = new Set(savedState.processedCashfreeEvents)
 let paymentSettings = normalizePaymentSettings(savedState.paymentSettings)
 let emailSettings = normalizeEmailSettings(savedState.emailSettings)
 let adminCredentials = normalizeAdminCredentialRecord(savedState.adminCredentials)
+let adminLastLoginAt = savedState.adminLastLoginAt
 const adminCredentialsMigrated = adminCredentials.email === normalizeEmailAddress('admin@gouri.agency') && verifyAdminPassword('gouri123', adminCredentials)
 if (adminCredentialsMigrated) adminCredentials = createAdminCredentialRecord(DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD)
 let homeSlider = normalizeHomeSlider(savedState.homeSlider)
@@ -459,6 +461,7 @@ function installPortalState(state) {
   paymentSettings = normalized.paymentSettings
   emailSettings = normalized.emailSettings
   adminCredentials = normalized.adminCredentials
+  adminLastLoginAt = normalized.adminLastLoginAt
   homeSlider = normalized.homeSlider
   notices.splice(0, notices.length, ...normalized.notices)
   const latestSerial = emailOutbox.reduce((latest, job) => Math.max(latest, /^\d{15}$/.test(job.serial || '') ? Number(job.serial) : 0), 0)
@@ -500,7 +503,7 @@ async function refreshPortalStateFromAtlas({ force = false, required = false } =
   }
 }
 function persistPortalState() {
-  const snapshot = gzipSync(Buffer.from(JSON.stringify({ version: 1, orders, profiles: [...profilesByGst.values()], trash, emailOutbox, communicationMessages, processedRazorpayEvents: [...processedRazorpayEvents], processedCashfreeEvents: [...processedCashfreeEvents], paymentSettings, emailSettings, adminCredentials, homeSlider, notices, nextEmailSerial, nextProfileId, nextOrderId: nextId })))
+  const snapshot = gzipSync(Buffer.from(JSON.stringify({ version: 1, orders, profiles: [...profilesByGst.values()], trash, emailOutbox, communicationMessages, processedRazorpayEvents: [...processedRazorpayEvents], processedCashfreeEvents: [...processedCashfreeEvents], paymentSettings, emailSettings, adminCredentials, adminLastLoginAt, homeSlider, notices, nextEmailSerial, nextProfileId, nextOrderId: nextId })))
   pendingPortalPersistenceWrites += 1
   const task = persistenceTail.catch(() => {}).then(async () => {
     const previousSnapshotId = currentPortalSnapshotId
@@ -2642,7 +2645,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (!isAdmin && !profile && !identifier.includes('@')) return json(res, 401, { error: 'No registered profile matches that phone number or GST number.' })
     const token = randomUUID()
-    if (isAdmin) adminSessions.add(token)
+    if (isAdmin) {
+      adminSessions.add(token)
+      adminLastLoginAt = new Date().toISOString()
+      await persistPortalState().catch(error => console.error('Could not save the admin last-login timestamp:', error.message))
+    }
     else {
       clientSessions.set(token, profile?.id || null)
       if (profile) {
@@ -2651,7 +2658,7 @@ const server = http.createServer(async (req, res) => {
       }
     }
     const email = profile?.email || identifier
-    return json(res, 200, { user: { name: isAdmin ? 'Gouri Admin' : (profile?.ownerName || profile?.shopName || email.split('@')[0]), email, role: isAdmin ? 'admin' : 'client', token, profile: dashboardProfile(profile) } })
+    return json(res, 200, { user: { name: isAdmin ? 'Gouri Admin' : (profile?.ownerName || profile?.shopName || email.split('@')[0]), email, role: isAdmin ? 'admin' : 'client', token, lastLoginAt: isAdmin ? adminLastLoginAt : profile?.lastLoginAt || '', profile: dashboardProfile(profile) } })
   }
   const profileDocumentPath = /^\/api\/profiles\/([^/]+)\/documents\/(ownerPhoto|profilePhoto|signature|drugLicense|gstCopy)$/.exec(url.pathname)
   if (req.method === 'GET' && profileDocumentPath) {
