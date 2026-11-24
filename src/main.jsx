@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, LockKeyhole, Mail, Menu, Package, Pencil, Phone, Plus, ShieldCheck, Sparkles, X } from './icons.jsx'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, LockKeyhole, Mail, Menu, Package, Pencil, Phone, Plus, ShieldCheck, Sparkles, WhatsApp, X } from './icons.jsx'
 import { createStatementPdf, getStatementPeriodRange } from './statementPdf.js'
 import { createHolidayCalendarPdf } from './holidayPdf.js'
 import { createNoticePdf } from './noticePdf.js'
@@ -3537,6 +3537,14 @@ function App() {
               <a href="mailto:dbachchu@gmail.com"><span className="contact-email-value"><Mail size={15}/><span><small>LEVEL 2</small>dbachchu@gmail.com</span></span><ArrowUpRight size={14}/></a>
               <a href="mailto:upadhyayjagneswar@gmail.com"><span className="contact-email-value"><Mail size={15}/><span><small>LEVEL 3</small>upadhyayjagneswar@gmail.com</span></span><ArrowUpRight size={14}/></a>
             </div>
+          </section>
+          <section className="contact-card contact-whatsapp-card">
+            <span className="contact-kicker">WHATSAPP</span>
+            <h2>Chat with our team</h2>
+            <div className="contact-detail-list">{[
+              ['8250589982', '918250589982'],
+              ['8250558137', '918250558137']
+            ].map(([phone, whatsappNumber]) => <a key={phone} href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('*Hi, I am an IndiaMART customer.*')}`} target="_blank" rel="noopener noreferrer"><span className="contact-method-value"><WhatsApp size={17}/>{phone}</span><ArrowUpRight size={14}/></a>)}</div>
           </section>
           <section className="contact-card contact-card-wide">
             <span className="contact-kicker">VISIT THE SHOP</span>
