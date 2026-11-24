@@ -865,7 +865,7 @@ html,body{overflow-x:clip}
 .footer-security-track{display:flex;width:200%;animation:footer-security-flow 26s linear infinite}
 .footer-security-message{display:flex;flex:0 0 50%;align-items:center;justify-content:center;gap:10px;min-height:47px;padding:10px 20px;font-size:10px;font-weight:600;letter-spacing:.2px;white-space:nowrap}
 .footer-security-message svg{flex-shrink:0;color:#66835e}
-@keyframes footer-security-flow{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+@keyframes footer-security-flow{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.footer-security-track{width:100%;animation:none}.footer-security-message{flex-basis:100%}.footer-security-message[aria-hidden=true]{display:none}}
 .order-disclaimer-title{display:flex;align-items:center;gap:10px;margin:0 0 20px;color:#a5221a;font:700 26px 'Manrope';letter-spacing:-.7px;animation:order-disclaimer-flash 1s steps(2,end) infinite}
 .order-disclaimer-title>span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#b42318;color:#fff;font:800 18px 'Manrope'}
