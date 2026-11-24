@@ -2646,6 +2646,11 @@ function App() {
   const [externalPortal, setExternalPortal] = useState(null)
   const [paymentSuccess, setPaymentSuccess] = useState(null)
   const [role, setRole] = useState('client')
+  const [loginCaptcha, setLoginCaptcha] = useState(null)
+  const [loginCaptchaAnswer, setLoginCaptchaAnswer] = useState('')
+  const [loginCaptchaLoading, setLoginCaptchaLoading] = useState(false)
+  const [loginCaptchaError, setLoginCaptchaError] = useState('')
+  const [loginCaptchaRevision, setLoginCaptchaRevision] = useState(0)
   const [user, setUser] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [orders, setOrders] = useState([])
@@ -2697,6 +2702,34 @@ function App() {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 15_000)
     return () => window.clearInterval(timer)
   }, [])
+  useEffect(() => {
+    if (page !== 'login' || role !== 'client') {
+      setLoginCaptcha(null)
+      setLoginCaptchaAnswer('')
+      setLoginCaptchaError('')
+      setLoginCaptchaLoading(false)
+      return undefined
+    }
+    let active = true
+    setLoginCaptcha(null)
+    setLoginCaptchaAnswer('')
+    setLoginCaptchaError('')
+    setLoginCaptchaLoading(true)
+    const loadCaptcha = async () => {
+      try {
+        const response = await fetch(`${API}/client/login-captcha`, { cache: 'no-store', signal: AbortSignal.timeout(9000) })
+        const data = await readApiJson(response, 'The CAPTCHA service could not be reached. Please try again.')
+        if (!response.ok) throw new Error(data.error || 'A CAPTCHA code could not be loaded.')
+        if (active) setLoginCaptcha(data)
+      } catch (error) {
+        if (active) setLoginCaptchaError(error.message || 'A CAPTCHA code could not be loaded.')
+      } finally {
+        if (active) setLoginCaptchaLoading(false)
+      }
+    }
+    loadCaptcha()
+    return () => { active = false }
+  }, [page, role, loginCaptchaRevision])
   useEffect(() => {
     if (page !== 'home') return
     if (!siteVisitRequestRef.current) {
@@ -3009,7 +3042,13 @@ function App() {
     e.preventDefault(); setBusy(true); setNotice(''); setNoticeIsError(false)
     const form = new FormData(e.currentTarget)
     try {
-      const requestBody = JSON.stringify({ identifier: form.get('identifier'), password: form.get('password'), role })
+      const body = { identifier: form.get('identifier'), password: form.get('password'), role }
+      if (role === 'client') {
+        if (!loginCaptcha?.challengeId) throw new Error('Wait for the CAPTCHA code to load, then try again.')
+        body.captchaId = loginCaptcha.challengeId
+        body.captchaAnswer = loginCaptchaAnswer
+      }
+      const requestBody = JSON.stringify(body)
       const response = await fetch(`${API}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody, signal: AbortSignal.timeout(9000) })
       const data = await response.json().catch(() => null)
       if (!data) {
@@ -3023,6 +3062,10 @@ function App() {
       const unreachable = err instanceof TypeError
       setNotice(timedOut ? 'Sign-in is taking too long. Check the portal server and database connection, then try again.' : unreachable ? 'The portal API is unavailable. Start the portal with npm run dev and try again.' : err.message || 'Could not connect to the portal. Please try again.')
       setNoticeIsError(true)
+      if (role === 'client') {
+        setLoginCaptchaAnswer('')
+        setLoginCaptchaRevision(value => value + 1)
+      }
     } finally { setBusy(false) }
   }
   const changeLoginRole = nextRole => {
@@ -3599,7 +3642,7 @@ function App() {
         </form>
       </main>}
 
-      {page === 'login' && <main className="login-page"><div className="login-card"><div className="login-mark"><Mark/></div><div className="eyebrow"><span className="live-dot"/> CLIENT OR ADMIN</div><h1>Sign in</h1><p>Choose your account type and enter your details.</p><div className="role-tabs" role="group" aria-label="Sign-in type"><button type="button" aria-pressed={role === 'client'} className={role === 'client' ? 'selected' : ''} onClick={() => changeLoginRole('client')}>Client</button><button type="button" aria-pressed={role === 'admin'} className={role === 'admin' ? 'selected' : ''} onClick={() => changeLoginRole('admin')}>Admin</button></div><form key={role} onSubmit={login}><label>{role === 'admin' ? 'Email address' : 'Registered email, phone, or GST'}<input type="text" name="identifier" autoComplete="username" placeholder={role === 'admin' ? 'Admin email address' : 'Email, mobile number, or GSTIN'} required/></label>{role === 'admin' && <label>Password<input type="password" name="password" autoComplete="current-password" placeholder="Your password" required/></label>}{noticeIsError && notice && <div className="error-note" role="alert">{notice}</div>}<button className="button dark full" disabled={busy}>{busy ? <LoadingAction loading label="Signing in…"/> : <>Sign in <ArrowRight size={16}/></>}</button></form><div className="login-help"><CircleHelp size={14}/> Need help? <a href="mailto:gouriagency185@gmail.com">Contact us</a></div></div></main>}
+      {page === 'login' && <main className="login-page"><div className="login-card"><div className="login-mark"><Mark/></div><div className="eyebrow"><span className="live-dot"/> CLIENT OR ADMIN</div><h1>Sign in</h1><p>Choose your account type and enter your details.</p><div className="role-tabs" role="group" aria-label="Sign-in type"><button type="button" aria-pressed={role === 'client'} className={role === 'client' ? 'selected' : ''} onClick={() => changeLoginRole('client')}>Client</button><button type="button" aria-pressed={role === 'admin'} className={role === 'admin' ? 'selected' : ''} onClick={() => changeLoginRole('admin')}>Admin</button></div><form key={role} onSubmit={login}><label>{role === 'admin' ? 'Email address' : 'Registered email, phone, or GST'}<input type="text" name="identifier" autoComplete="username" placeholder={role === 'admin' ? 'Admin email address' : 'Email, mobile number, or GSTIN'} required/></label>{role === 'admin' && <label>Password<input type="password" name="password" autoComplete="current-password" placeholder="Your password" required/></label>}{role === 'client' && <section className="login-captcha" aria-labelledby="login-captcha-title"><div className="login-captcha-heading"><div><span className="eyebrow">HUMAN VERIFICATION</span><strong id="login-captcha-title">Quick security check</strong></div><button type="button" className="captcha-refresh" onClick={() => setLoginCaptchaRevision(value => value + 1)} disabled={loginCaptchaLoading}><Sparkles size={14}/> New code</button></div><div className="login-captcha-body"><div className="captcha-image-frame">{loginCaptchaLoading ? <span>Loading secure code…</span> : loginCaptcha?.image ? <img src={loginCaptcha.image} alt="Five-character CAPTCHA code. Enter the characters shown."/> : <span>Code unavailable</span>}</div><label htmlFor="client-captcha-answer">Enter the code<input id="client-captcha-answer" name="captchaAnswer" type="text" autoComplete="off" autoCapitalize="characters" spellCheck="false" maxLength={5} value={loginCaptchaAnswer} onChange={event => setLoginCaptchaAnswer(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="5 characters" required aria-describedby="login-captcha-help"/></label></div><p id="login-captcha-help">Enter the five letters and numbers shown. The code expires in four minutes.</p>{loginCaptchaError && <small className="login-captcha-error" role="alert">{loginCaptchaError} <button type="button" onClick={() => setLoginCaptchaRevision(value => value + 1)}>Try again</button></small>}</section>}{noticeIsError && notice && <div className="error-note" role="alert">{notice}</div>}<button className="button dark full" disabled={busy || (role === 'client' && (!loginCaptcha || loginCaptchaLoading || Boolean(loginCaptchaError)))}>{busy ? <LoadingAction loading label="Signing in…"/> : <>Sign in <ArrowRight size={16}/></>}</button></form><div className="login-help"><CircleHelp size={14}/> Need help? <a href="mailto:gouriagency185@gmail.com">Contact us</a></div></div></main>}
 
       {page === 'payment-success' && user?.role === 'client' && paymentSuccess && <PaymentSuccessPage details={paymentSuccess} token={user.token} email={user.profile?.email || user.email} onReturn={() => { setClientTab('orders'); go('client') }}/>}
 

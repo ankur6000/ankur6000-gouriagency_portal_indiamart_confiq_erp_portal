@@ -395,6 +395,45 @@ function reserveEmailSerial() {
 if (EMAIL_CONFIGURED) for (const job of emailOutbox) if (job.status === 'needs_configuration') job.status = 'pending'
 const adminSessions = new Set()
 const clientSessions = new Map()
+const clientLoginCaptchaChallenges = new Map()
+const clientCaptchaAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+const CLIENT_CAPTCHA_LIFETIME_MS = 4 * 60_000
+function createClientLoginCaptcha() {
+  const now = Date.now()
+  for (const [id, challenge] of clientLoginCaptchaChallenges) {
+    if (challenge.expiresAt <= now) clientLoginCaptchaChallenges.delete(id)
+  }
+  while (clientLoginCaptchaChallenges.size >= 1000) clientLoginCaptchaChallenges.delete(clientLoginCaptchaChallenges.keys().next().value)
+  const id = randomUUID()
+  const answer = Array.from({ length: 5 }, () => clientCaptchaAlphabet[randomInt(clientCaptchaAlphabet.length)]).join('')
+  const lines = Array.from({ length: 5 }, () => {
+    const x1 = randomInt(8, 210), y1 = randomInt(8, 65), x2 = randomInt(8, 210), y2 = randomInt(8, 65)
+    return `<path d="M${x1} ${y1}L${x2} ${y2}" stroke="#567265" stroke-opacity=".24" stroke-width="${randomInt(1, 3)}"/>`
+  }).join('')
+  const dots = Array.from({ length: 20 }, () => `<circle cx="${randomInt(4, 216)}" cy="${randomInt(4, 68)}" r="${randomInt(1, 3)}" fill="#819a82" fill-opacity=".35"/>`).join('')
+  const letters = [...answer].map((character, index) => {
+    const x = 34 + index * 35
+    const y = randomInt(43, 55)
+    const rotation = randomInt(-13, 14)
+    return `<text x="${x}" y="${y}" transform="rotate(${rotation} ${x} ${y})" fill="#20392f" font-family="Arial,sans-serif" font-size="31" font-weight="700">${character}</text>`
+  }).join('')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="72" viewBox="0 0 220 72"><defs><linearGradient id="paper" x2="1" y2="1"><stop stop-color="#f5f8f2"/><stop offset="1" stop-color="#e2eadf"/></linearGradient></defs><rect width="220" height="72" rx="13" fill="url(#paper)"/>${lines}${dots}${letters}</svg>`
+  clientLoginCaptchaChallenges.set(id, { answer, expiresAt: now + CLIENT_CAPTCHA_LIFETIME_MS })
+  return { challengeId: id, image: `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`, expiresInSeconds: CLIENT_CAPTCHA_LIFETIME_MS / 1000 }
+}
+function validateClientLoginCaptcha(challengeId, submittedAnswer) {
+  const id = String(challengeId || '').trim()
+  const challenge = clientLoginCaptchaChallenges.get(id)
+  if (!challenge || challenge.expiresAt <= Date.now()) {
+    clientLoginCaptchaChallenges.delete(id)
+    return 'CAPTCHA expired. Load a new code and try again.'
+  }
+  clientLoginCaptchaChallenges.delete(id)
+  const expected = Buffer.from(challenge.answer)
+  const received = Buffer.from(String(submittedAnswer || '').trim().toUpperCase())
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) return 'CAPTCHA did not match. A new code has been loaded.'
+  return ''
+}
 let nextId = savedState.nextOrderId
 let nextProfileId = savedState.nextProfileId
 let persistenceTail = Promise.resolve()
@@ -2340,7 +2379,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 503, { error: 'Visitor count could not be updated right now.' })
     }
   }
-  const doesNotNeedPortalRefresh = ['/api/login', '/api/health', '/api/gst/verify'].includes(url.pathname) || /^\/api\/(?:pincode\/\d{6}|ifsc\/[A-Z]{4}0[A-Z0-9]{6}|holidays\/\d{4}\/[A-Z]{2})$/i.test(url.pathname)
+  const doesNotNeedPortalRefresh = ['/api/login', '/api/client/login-captcha', '/api/health', '/api/gst/verify'].includes(url.pathname) || /^\/api\/(?:pincode\/\d{6}|ifsc\/[A-Z]{4}0[A-Z0-9]{6}|holidays\/\d{4}\/[A-Z]{2})$/i.test(url.pathname)
   if (url.pathname.startsWith('/api/') && !doesNotNeedPortalRefresh) {
     if (req.method === 'GET' || req.method === 'HEAD') {
       refreshPortalStateFromAtlas().catch(error => console.warn('Serving a read from the latest in-memory portal snapshot while MongoDB Atlas reconnects:', error.message))
@@ -2350,6 +2389,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
   if (url.pathname === '/api/health') return json(res, 200, { ok: true, name: 'Gouri Agency Portal API', storage: 'MongoDB Atlas' })
+  if (req.method === 'GET' && url.pathname === '/api/client/login-captcha') return json(res, 200, createClientLoginCaptcha())
   if (req.method === 'GET' && holidayCalendarMatch) {
     const year = Number(holidayCalendarMatch[1])
     const stateCode = holidayCalendarMatch[2].toUpperCase()
@@ -2584,6 +2624,10 @@ const server = http.createServer(async (req, res) => {
     if (!body) return
     const identifier = String(body.identifier || body.email || '').trim()
     const { password, role } = body
+    if (role === 'client') {
+      const captchaError = validateClientLoginCaptcha(body.captchaId, body.captchaAnswer)
+      if (captchaError) return json(res, 400, { error: captchaError })
+    }
     let isAdmin = role === 'admin' && normalizeEmailAddress(identifier) === adminCredentials.email && verifyAdminPassword(password, adminCredentials)
     if (role === 'admin' && !isAdmin && normalizeEmailAddress(identifier) !== adminCredentials.email) {
       await refreshPortalStateFromAtlas({ force: true }).catch(() => {})
