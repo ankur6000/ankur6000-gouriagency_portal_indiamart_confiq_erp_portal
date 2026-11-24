@@ -1278,3 +1278,13 @@ p{line-height:1.7}
 .client-payment-batch>.client-charge-summary{margin:0 0 14px}
 .payment-record>div:first-child{display:grid;gap:5px}
 @media(max-width:680px){.payment-charge-toolbar{align-items:flex-start;flex-direction:column}.payment-charge-toolbar .button{width:100%;justify-content:center}.payment-charge-table-head{display:none}.payment-charge-row{grid-template-columns:minmax(0,1fr);gap:8px;padding:12px}.payment-charge-remove{justify-self:start}.payment-charge-schedule{grid-template-columns:minmax(0,1fr)}}
+.admin-client-access-panel{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:14px 20px;padding:14px 16px;border:1px solid #dce6d9;border-radius:7px;background:#f5f8f3}
+.admin-client-access-panel>div{display:grid;gap:4px;min-width:0}
+.admin-client-access-panel strong{color:#3e5a47;font-size:11px}
+.admin-client-access-panel small{color:#738075;font-size:9px;line-height:1.55}
+.admin-client-access-panel.is-blocked{border-color:#edc8c3;background:#fff5f3}
+.admin-client-access-panel.is-blocked strong{color:#a3483e}
+.admin-client-access-panel .button{flex-shrink:0;min-height:36px;padding:0 13px;font-size:9px}
+.client-access-flag{color:#55725b!important;font-weight:700}
+.client-access-flag.is-blocked{color:#b2483e!important}
+@media(max-width:600px){.admin-client-access-panel{align-items:flex-start;flex-direction:column;margin:12px;padding:13px}.admin-client-access-panel .button{width:100%}}

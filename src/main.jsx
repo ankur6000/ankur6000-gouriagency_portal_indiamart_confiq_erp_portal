@@ -2688,6 +2688,7 @@ function App() {
   const [clientProfileTabs, setClientProfileTabs] = useState({})
   const [orderNotice, setOrderNotice] = useState('')
   const [updatingOrder, setUpdatingOrder] = useState('')
+  const [updatingClientAccess, setUpdatingClientAccess] = useState('')
   const [items, setItems] = useState([{ name: '', quantity: '' }])
   const [bulkImportReset, setBulkImportReset] = useState(0)
   const [gstVerification, setGstVerification] = useState(null)
@@ -2850,6 +2851,19 @@ function App() {
             if (attempt === 1) throw error
             await new Promise(resolve => window.setTimeout(resolve, 700))
           }
+        }
+        if (response.status === 403 && data?.errorCode === 603) {
+          if (!cancelled) {
+            setClientOrders([])
+            setUser(null)
+            setRole('client')
+            setPage('login')
+            setNotice(data.error || 'Access denied. Contact Gouri Agency administration. Error code: 603.')
+            setNoticeIsError(true)
+            setClientOrderNotice('')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+          return
         }
         if (!response.ok) throw new Error(data.error || 'Could not load your orders.')
         if (!cancelled) {
@@ -3263,6 +3277,26 @@ function App() {
       setOrderNotice(err.message || 'Could not update this request.')
     } finally {
       setUpdatingOrder('')
+    }
+  }
+  const updateClientAccess = async profile => {
+    const blocked = !Boolean(profile.accessBlocked)
+    setUpdatingClientAccess(profile.id)
+    setOrderNotice('')
+    try {
+      const response = await fetch(`${API}/admin/profiles/${encodeURIComponent(profile.id)}/access`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+        body: JSON.stringify({ blocked })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not update client access.')
+      setProfiles(current => current.map(item => item.id === data.profile.id ? data.profile : item))
+      notifyActionSuccess(blocked ? `${profile.shopName} portal access blocked.` : `${profile.shopName} portal access restored.`)
+    } catch (error) {
+      setOrderNotice(error.message || 'Could not update client access.')
+    } finally {
+      setUpdatingClientAccess('')
     }
   }
   const cancelAdminOrder = async orderId => {
@@ -3743,7 +3777,7 @@ function App() {
             <details className="admin-customer-details" onToggle={event => { if (event.currentTarget.open) setClientProfileTabs(current => ({ ...current, [profile.id]: current[profile.id] || 'overview' })) }}>
               <summary className="admin-customer-summary">
                 <ProfileAvatar profile={profile} token={user.token}/>
-                <div className="admin-customer-overview"><strong>{profile.shopName}</strong><span>GST: {profile.gstNumber} · {profile.orderIds.length} order{profile.orderIds.length === 1 ? '' : 's'}</span><small>Outstanding: {formatMoney(orders.filter(order => order.profileId === profile.id && order.status !== 'Cancelled').reduce((sum, order) => sum + Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)), 0))}</small></div>
+                <div className="admin-customer-overview"><strong>{profile.shopName}</strong><span>GST: {profile.gstNumber} · {profile.orderIds.length} order{profile.orderIds.length === 1 ? '' : 's'}</span><small>Outstanding: {formatMoney(orders.filter(order => order.profileId === profile.id && order.status !== 'Cancelled').reduce((sum, order) => sum + Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)), 0))}</small>{profile.accessBlocked && <small className="client-access-flag is-blocked">Client portal blocked · 603</small>}</div>
                 <span className="admin-profile-expand"><span className="profile-expand-closed">View profile</span><span className="profile-expand-open">Hide profile</span><ChevronDown size={15}/></span>
               </summary>
               <div className="admin-customer-expanded">
@@ -3760,6 +3794,10 @@ function App() {
                 {profile.profileFrozen && <span className="profile-license-status" role="status">Profile frozen · {profile.drugLicenseExpiryMissing ? 'expiry date missing' : 'drug license expired'}</span>}
                 {clientProfileTabs[profile.id] === 'profile' && <DocumentLinks attachments={profile.attachments} profileId={profile.id} token={user.token} onView={setPreviewDocument}/>}
               </div>
+            </div>
+            <div className={`admin-client-access-panel${profile.accessBlocked ? ' is-blocked' : ''}`}>
+              <div><strong>{profile.accessBlocked ? 'Client portal access is blocked' : 'Client portal access is active'}</strong><small>{profile.accessBlocked ? 'The client cannot sign in or use portal services. Sign-in displays access denied, error code 603.' : 'Block this profile to prevent the client from signing in or using portal services.'}</small></div>
+              <button type="button" className={`button ${profile.accessBlocked ? 'outline' : 'danger'}`} disabled={updatingClientAccess === profile.id} onClick={() => updateClientAccess(profile)}>{updatingClientAccess === profile.id ? <LoadingAction loading label="Updating access…"/> : profile.accessBlocked ? 'Unblock client' : 'Block client'}</button>
             </div>
             <DashboardTabBar tabs={adminClientTabs} active={clientProfileTabs[profile.id] || 'overview'} idPrefix={`admin-client-${profile.id}`} label={`${profile.shopName} sections`} onChange={tab => setClientProfileTabs(current => ({ ...current, [profile.id]: tab }))}/>
             {clientProfileTabs[profile.id] !== 'orders' && clientProfileTabs[profile.id] !== 'dues' && clientProfileTabs[profile.id] !== 'statements' && clientProfileTabs[profile.id] !== 'profile' && <>

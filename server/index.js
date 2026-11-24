@@ -982,9 +982,17 @@ const safeProfile = profile => {
   const expiryValid = validDateKey(profile.drugLicenseExpiresAt)
   return {
     ...visible,
+    accessBlocked: Boolean(profile.accessBlocked),
     drugLicenseExpired: expiryValid && drugLicenseExpired(profile.drugLicenseExpiresAt),
     drugLicenseExpiryMissing: !expiryValid,
     profileFrozen: profileFrozen(profile)
+  }
+}
+function blockedClientAccessError() {
+  return {
+    error: 'Access denied. Your client account is blocked. Please contact Gouri Agency administration at 8250589982, 8250558137, or gouriagency185@gmail.com. Error code: 603.',
+    code: 603,
+    errorCode: 603
   }
 }
 function dashboardAttachmentMetadata(attachments) {
@@ -2391,6 +2399,12 @@ const server = http.createServer(async (req, res) => {
       catch { return json(res, 503, { error: 'MongoDB Atlas is temporarily unavailable. Please retry this update shortly.' }) }
     }
   }
+  const requestToken = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+  if (requestToken && clientSessions.has(requestToken)) {
+    const blockedProfileId = clientSessions.get(requestToken)
+    const blockedProfile = [...profilesByGst.values()].find(profile => profile.id === blockedProfileId)
+    if (blockedProfile?.accessBlocked) return json(res, 403, blockedClientAccessError())
+  }
   if (url.pathname === '/api/health') return json(res, 200, { ok: true, name: 'Gouri Agency Portal API', storage: 'MongoDB Atlas' })
   if (req.method === 'GET' && url.pathname === '/api/client/login-captcha') return json(res, 200, createClientLoginCaptcha())
   if (req.method === 'GET' && holidayCalendarMatch) {
@@ -2622,6 +2636,34 @@ const server = http.createServer(async (req, res) => {
     persistPortalState()
     return json(res, 200, { ok: true, ignored: !order })
   }
+  const adminProfileAccessPath = /^\/api\/admin\/profiles\/([^/]+)\/access$/.exec(url.pathname)
+  if (req.method === 'PATCH' && adminProfileAccessPath) {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token || !adminSessions.has(token)) return json(res, 401, { error: 'Admin sign-in required.' })
+    const body = await readJson(req, res)
+    if (!body) return
+    if (typeof body.blocked !== 'boolean') return json(res, 400, { error: 'Choose whether client access should be blocked.' })
+    let profileId
+    try { profileId = decodeURIComponent(adminProfileAccessPath[1]) }
+    catch { return json(res, 400, { error: 'Invalid customer profile ID.' }) }
+    const profile = [...profilesByGst.values()].find(item => item.id === profileId)
+    if (!profile) return json(res, 404, { error: 'Customer profile not found.' })
+    const wasBlocked = Boolean(profile.accessBlocked)
+    if (wasBlocked !== body.blocked) {
+      profile.accessBlocked = body.blocked
+      profile.accessUpdatedAt = new Date().toISOString()
+      profile.updatedAt = profile.accessUpdatedAt
+      const emailJob = queueProfileUpdateEmail(profile, [['Client portal access', body.blocked ? 'Blocked by an administrator' : 'Restored by an administrator']], null, {
+        title: 'Client portal access updated',
+        introduction: body.blocked
+          ? 'An administrator has blocked sign-in and portal access for this customer profile. Please contact Gouri Agency if you need assistance.'
+          : 'An administrator has restored sign-in and portal access for this customer profile.'
+      })
+      await persistPortalState()
+      return json(res, 200, { profile: safeProfile(profile), emailStatus: emailJob?.status || null })
+    }
+    return json(res, 200, { profile: safeProfile(profile), emailStatus: null })
+  }
   if (req.method === 'POST' && url.pathname === '/api/login') {
     const body = await readJson(req, res)
     if (!body) return
@@ -2645,6 +2687,7 @@ const server = http.createServer(async (req, res) => {
       profile = findProfileByIdentifier(identifier)
     }
     if (!isAdmin && !profile && !identifier.includes('@')) return json(res, 401, { error: 'No registered profile matches that phone number or GST number.' })
+    if (role === 'client' && profile?.accessBlocked) return json(res, 403, blockedClientAccessError())
     const token = randomUUID()
     if (isAdmin) {
       adminSessions.add(token)
@@ -4012,6 +4055,7 @@ const server = http.createServer(async (req, res) => {
     const clientProfileId = clientToken ? clientSessions.get(clientToken) : null
     const signedInProfile = clientProfileId ? [...profilesByGst.values()].find(item => item.id === clientProfileId) : null
     const existingProfileForOrder = signedInProfile || profilesByGst.get(normalizeGst(data.gstNumber)) || null
+    if (existingProfileForOrder?.accessBlocked) return json(res, 403, blockedClientAccessError())
     const requiredFields = ['email', 'mobile', 'shopName', 'shopAddress', 'pincode', 'city', 'state', 'country', 'gstNumber', 'drugLicenseNumber']
     if (requiredFields.some(field => typeof data[field] !== 'string' || !data[field].trim())) {
       return json(res, 400, { error: 'Complete the email, mobile, and shop details.' })
