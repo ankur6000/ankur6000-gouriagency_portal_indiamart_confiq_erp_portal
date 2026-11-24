@@ -965,10 +965,10 @@ p{line-height:1.7}
 .login-captcha>p{margin:0;color:#7e887f;font-size:9px;line-height:1.5}
 .login-captcha-error{color:#9a5144;font-size:9px;line-height:1.5}
 .login-captcha-error button{padding:0;border:0;background:none;color:#405d4d;font-size:inherit;font-weight:700;text-decoration:underline}
-.login-terms-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:3px 0 15px;color:#56635a;font-size:10px;line-height:1.5}
-.login-card .login-terms-accept{display:inline-flex;flex-direction:row;align-items:center;gap:8px;margin:0;color:#56635a;font-size:10px;font-weight:400;cursor:pointer}
+.login-terms-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 18px;padding:11px 13px;border:1px solid #cbd8c8;border-radius:6px;background:#f2f6ef;color:#405448;font-size:11px;line-height:1.5}
+.login-card .login-terms-accept{display:inline-flex;flex:1;flex-direction:row;align-items:center;gap:9px;margin:0;color:#405448;font-size:11px;font-weight:600;cursor:pointer}
 .login-card .login-terms-accept input{width:17px;height:17px;min-height:17px;flex:0 0 17px;margin:0;padding:0;border-radius:3px;accent-color:#415c50;cursor:pointer}
-.login-terms-link{padding:0;border:0;background:none;color:#405d4d;font-size:10px;font-weight:700;text-decoration:underline}
+.login-terms-link{padding:3px 0;border:0;background:none;color:#405d4d;font-size:10px;font-weight:700;text-decoration:underline;white-space:nowrap}
 .login-terms-link:hover{color:#202b27}
 @media(max-width:420px){.login-captcha-body{grid-template-columns:1fr}.captcha-image-frame{height:64px}.login-terms-row{align-items:flex-start}}
 
