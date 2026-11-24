@@ -2390,6 +2390,7 @@ const clientDashboardTabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'pay-dues', label: 'Pay dues' },
   { id: 'orders', label: 'Orders & payments' },
+  { id: 'cancelled-orders', label: 'Cancelled orders' },
   { id: 'failed-transactions', label: 'Failed transactions' },
   { id: 'refunds', label: 'Refunds' },
   { id: 'statements', label: 'Statements' },
@@ -3401,6 +3402,8 @@ function App() {
       ...(order.items || []).map(item => item.name)
     ].some(value => String(value || '').toLowerCase().includes(query))))
   }
+  const activeClientOrders = clientOrders.filter(order => order.status !== 'Cancelled')
+  const cancelledClientOrders = clientOrders.filter(order => order.status === 'Cancelled')
 
   return <>
     <div className="site-shell">
@@ -3654,10 +3657,14 @@ function App() {
         {clientTab === 'pay-dues' && <ClientDuesTab orders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} paymentCharges={clientPaymentCharges} token={user.token} currentTime={currentTime} notice={clientOrderNotice} onOrdersUpdated={updatedOrders => setClientOrders(prev => prev.map(item => updatedOrders.find(updated => updated.id === item.id) || item))} onOrderUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>}
         {clientTab === 'orders' && <div className="dash-panel client-orders-panel">
           <div className="panel-heading"><div><span className="eyebrow">ORDERS & PAYMENTS</span><h2>Your orders and dues</h2></div><Package size={22}/></div>
-          <PaymentSummary orders={clientOrders} title="Your overall balance" className="client-payment-overview"/>
+          <PaymentSummary orders={activeClientOrders} title="Your overall balance" className="client-payment-overview"/>
           {clientOrderNotice && <div className="admin-notice" role="alert">{clientOrderNotice}</div>}
-          {clientOrders.length ? <><div className="client-payment-list">{clientOrders.map(order => <ClientPaymentOrder key={order.id} order={order} profileOrders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} paymentCharges={clientPaymentCharges} token={user.token} currentTime={currentTime} onUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>)}</div></> : <div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No orders or dues yet.</h3><p>Order balances set by the agency will appear here.</p></div>}
+          {activeClientOrders.length ? <div className="client-payment-list">{activeClientOrders.map(order => <ClientPaymentOrder key={order.id} order={order} profileOrders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} paymentCharges={clientPaymentCharges} token={user.token} currentTime={currentTime} onUpdated={updated => { setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item)); if (updated.status === 'Cancelled') setClientTab('cancelled-orders') }} onPaymentSuccess={showPaymentSuccess}/>)}</div> : <div className="empty-state"><div className="empty-icon"><Sparkles/></div><h3>No active orders or dues.</h3><p>Cancelled orders are available in the Cancelled orders tab.</p></div>}
         </div>}
+        {clientTab === 'cancelled-orders' && <section className="dash-panel client-orders-panel cancelled-client-orders-panel">
+          <div className="panel-heading"><div><span className="eyebrow">ORDER CANCELLATIONS</span><h2>Cancelled orders</h2><p>Review cancelled orders and their payment or refund updates.</p></div><span className="count-pill">{cancelledClientOrders.length} cancelled</span></div>
+          {cancelledClientOrders.length ? <div className="client-payment-list">{cancelledClientOrders.map(order => <ClientPaymentOrder key={order.id} order={order} profileOrders={clientOrders} razorpayKeyId={razorpayKeyId} cashfreeEnabled={cashfreeEnabled} cashfreeEnvironment={cashfreeEnvironment} bankTransferDetails={bankTransferDetails} promoCode={clientPromoCode} paymentCharges={clientPaymentCharges} token={user.token} currentTime={currentTime} onUpdated={updated => setClientOrders(prev => prev.map(item => item.id === updated.id ? updated : item))} onPaymentSuccess={showPaymentSuccess}/>)}</div> : <div className="empty-state"><div className="empty-icon"><Package size={19}/></div><h3>No cancelled orders.</h3><p>Orders you cancel before approval will appear here with their payment and refund status.</p></div>}
+        </section>}
         {clientTab === 'failed-transactions' && <ClientTransactionsTab orders={clientOrders} kind="failed"/>}
         {clientTab === 'refunds' && <ClientTransactionsTab orders={clientOrders} kind="refunds"/>}
         {clientTab === 'statements' && <section className="dash-panel client-statement-panel"><div className="panel-heading"><div><span className="eyebrow">ACCOUNT RECORDS</span><h2>Statements</h2><p>Download or email a date-range statement to your registered email.</p></div><Package size={22}/></div>{user?.profile && <StatementDownload profile={user.profile} orders={clientOrders} token={user.token}/>}</section>}
