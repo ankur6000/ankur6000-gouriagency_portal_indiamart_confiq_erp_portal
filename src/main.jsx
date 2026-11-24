@@ -3517,7 +3517,7 @@ function App() {
             <div className="portal-link-icon"><ArrowRight size={20} /></div>
             <h2>{user ? 'Open your workspace' : 'Sign in'}</h2>
             <p>{user ? 'Continue to your client workspace or studio admin panel.' : 'Access your client workspace or sign in as a studio admin.'}</p>
-            <button className="button outline portal-link-action" onClick={() => go(user ? (user.role === 'admin' ? 'admin' : 'client') : 'login')}>{user ? 'Open workspace' : 'Go to sign in'} <ArrowUpRight size={15} /></button>
+            <button className="button dark portal-link-action" onClick={() => go(user ? (user.role === 'admin' ? 'admin' : 'client') : 'login')}>{user ? 'Open workspace' : 'Go to sign in'} <ArrowUpRight size={15} /></button>
           </article>
         </section>
       </main>}
