@@ -982,6 +982,7 @@ const safeProfile = profile => {
   const expiryValid = validDateKey(profile.drugLicenseExpiresAt)
   return {
     ...visible,
+    indiaMartCustomer: profile.indiaMartCustomer !== false,
     accessBlocked: Boolean(profile.accessBlocked),
     drugLicenseExpired: expiryValid && drugLicenseExpired(profile.drugLicenseExpiresAt),
     drugLicenseExpiryMissing: !expiryValid,
@@ -4056,6 +4057,11 @@ const server = http.createServer(async (req, res) => {
     const signedInProfile = clientProfileId ? [...profilesByGst.values()].find(item => item.id === clientProfileId) : null
     const existingProfileForOrder = signedInProfile || profilesByGst.get(normalizeGst(data.gstNumber)) || null
     if (existingProfileForOrder?.accessBlocked) return json(res, 403, blockedClientAccessError())
+    if (typeof data.indiaMartCustomer !== 'boolean') return json(res, 400, { error: 'Choose whether you are an IndiaMART customer.' })
+    if (existingProfileForOrder && data.indiaMartCustomer !== (existingProfileForOrder.indiaMartCustomer !== false)) {
+      return json(res, 403, { error: 'IndiaMART customer status is fixed on a registered profile and cannot be changed.' })
+    }
+    if (data.indiaMartCustomer !== true) return json(res, 403, { error: 'Online order requests are available only to IndiaMART customers.' })
     const requiredFields = ['email', 'mobile', 'shopName', 'shopAddress', 'pincode', 'city', 'state', 'country', 'gstNumber', 'drugLicenseNumber']
     if (requiredFields.some(field => typeof data[field] !== 'string' || !data[field].trim())) {
       return json(res, 400, { error: 'Complete the email, mobile, and shop details.' })
@@ -4172,6 +4178,7 @@ const server = http.createServer(async (req, res) => {
       profile = {
         id: `GAP-${nextProfileId++}`,
         gstNumber: gstKey,
+        indiaMartCustomer: true,
         gstVerifiedAt: gstVerification ? new Date(gstVerification.issuedAt).toISOString() : null,
         drugLicenseExpiresAt: submittedExpiryDate,
         orderIds: [],
@@ -4180,6 +4187,7 @@ const server = http.createServer(async (req, res) => {
       profilesByGst.set(gstKey, profile)
     }
     if (clientToken && !clientProfileId) clientSessions.set(clientToken, profile.id)
+    if (typeof profile.indiaMartCustomer !== 'boolean') profile.indiaMartCustomer = true
     Object.assign(profile, {
       shopName: data.shopName.trim(),
       businessType: data.businessType,
@@ -4207,6 +4215,7 @@ const server = http.createServer(async (req, res) => {
     const order = {
       id: createOrderId(),
       profileId: profile.id,
+      indiaMartCustomer: profile.indiaMartCustomer,
       ownerName: data.businessType === 'Sole proprietorship' ? data.ownerName.trim() : '',
       email: data.email.trim(),
       mobile: data.mobile.trim(),

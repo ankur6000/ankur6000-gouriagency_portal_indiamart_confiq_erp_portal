@@ -254,6 +254,7 @@ export function createOrderLedgerPdf({ profile, currentOrder, orders = [], gener
   field('Official email', profile.email, 315, y, 242)
   y += 31
   field('Profile ID', profile.id || '-', M, y, 250)
+  field('IndiaMART customer', profile.indiaMartCustomer === false ? 'No' : 'Yes', 315, y, 242)
   y += 31
   field('Registered shop address', profile.shopAddress, M, y, W - M * 2, 36)
   y += 39

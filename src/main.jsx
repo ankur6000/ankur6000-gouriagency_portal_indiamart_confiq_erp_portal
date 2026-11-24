@@ -856,6 +856,7 @@ function ClientProfileDetails({ profile, token, onSaved, onViewDocument }) {
     ...(profile.businessType === 'Partnership' ? [['Partner 1', profile.partnerOne], ['Partner 2', profile.partnerTwo]] : [['Shop owner', profile.ownerName]]),
     ['Email address', profile.email], ['Mobile number', profile.mobile], ['Shop address', profile.shopAddress],
     ['PIN code', profile.pincode], ['City / district', profile.city], ['State', profile.state], ['Country', profile.country],
+    ['IndiaMART customer', profile.indiaMartCustomer === false ? 'No' : 'Yes'],
     ['GST number', profile.gstNumber], ['Drug license number', profile.drugLicenseNumber],
     ['Drug license expiry date', profile.drugLicenseExpiresAt]
   ]
@@ -2690,6 +2691,7 @@ function App() {
   const [updatingOrder, setUpdatingOrder] = useState('')
   const [updatingClientAccess, setUpdatingClientAccess] = useState('')
   const [items, setItems] = useState([{ name: '', quantity: '' }])
+  const [indiaMartCustomer, setIndiaMartCustomer] = useState('')
   const [bulkImportReset, setBulkImportReset] = useState(0)
   const [gstVerification, setGstVerification] = useState(null)
   const [gstLookupStatus, setGstLookupStatus] = useState({ state: 'idle', message: '' })
@@ -3120,6 +3122,8 @@ function App() {
     e.preventDefault()
     if (!orderIntakeSettings.enabled) { setNotice(orderIntakeSettings.message); setNoticeIsError(true); return }
     const quickClientOrder = user?.role === 'client' && user.profile
+    if (!quickClientOrder && indiaMartCustomer !== 'yes') { setNotice('Select Yes for IndiaMART customer to unlock and submit the order form.'); setNoticeIsError(true); return }
+    if (quickClientOrder && user.profile.indiaMartCustomer === false) { setNotice('This profile is marked as not being an IndiaMART customer, so online orders are locked.'); setNoticeIsError(true); return }
     if (!quickClientOrder && gstLookupStatus.state === 'checking') { setNotice('Please wait for GST verification to finish, or complete the details manually if it is unavailable.'); setNoticeIsError(true); return }
     if (!quickClientOrder && businessType === 'Partnership' && (!authorizedSignatoryPartner || !selectedPartnerDocumentsReady)) {
       setNotice('Upload the selected partner’s photo and signature before submitting this order.')
@@ -3142,6 +3146,7 @@ function App() {
           partnerDocumentSignatory: profile.businessType === 'Partnership' ? (signatory || '') : '',
           shopAddress: profile.shopAddress || '', pincode: profile.pincode || '', city: profile.city || '',
           state: profile.state || '', country: profile.country || 'India', gstNumber: profile.gstNumber || '',
+          indiaMartCustomer: profile.indiaMartCustomer !== false,
           drugLicenseNumber: profile.drugLicenseNumber || '', drugLicenseExpiresAt: profile.drugLicenseExpiresAt || '',
           items: items.map(item => ({ name: item.name.trim(), quantity: item.quantity.trim() })),
           remarks: '', declarationAccepted: true, attachments: {}
@@ -3175,6 +3180,7 @@ function App() {
           partnerDocumentSignatory: businessType === 'Partnership' ? selectedPartnerName : '',
           shopAddress: form.get('shopAddress'), pincode: form.get('pincode'), city: form.get('city'),
           state: form.get('state'), country: form.get('country'), gstNumber: form.get('gstNumber'),
+          indiaMartCustomer: form.get('indiaMartCustomer') === 'yes',
           gstVerificationProof: gstProof, drugLicenseNumber: form.get('drugLicenseNumber'),
           drugLicenseExpiresAt: form.get('drugLicenseExpiresAt'),
           items: items.map(item => ({ name: item.name.trim(), quantity: item.quantity.trim() })),
@@ -3193,6 +3199,7 @@ function App() {
       setNotice(`Order ${data.order.id} submitted and is waiting for admin approval.${downloaded ? ' Your order and profile PDF was downloaded.' : ''}${emailMessage}`); formElement.reset()
       notifyActionSuccess(`Order ${data.order.id} submitted and is awaiting admin approval.`)
       setItems([{ name: '', quantity: '' }])
+      if (!quickClientOrder) setIndiaMartCustomer('')
       if (quickClientOrder) setBulkImportReset(value => value + 1)
       setBusinessType('')
       setPartnerOneName(''); setPartnerTwoName(''); setAuthorizedSignatoryPartner('')
@@ -3625,7 +3632,9 @@ function App() {
         {user.profile.profileFrozen && <div className="license-freeze-alert" role="alert"><strong>Order access is frozen</strong><span>{user.profile.drugLicenseExpiryMissing ? 'The drug license expiry date is missing.' : `The drug license expired on ${user.profile.drugLicenseExpiresAt}.`} Ask an admin to record a valid expiry date before placing an order.</span></div>}
         <div className="quick-order-profile-summary"><strong>{user.profile.shopName}</strong><span>GSTIN: {user.profile.gstNumber}</span><small>Profile details, regulatory documents, and saved signature are reused for this order.</small></div>
         <form className="order-form quick-order-form" onSubmit={submitOrder}>
-          <fieldset className="order-form-fields" disabled={!orderIntakeSettings.enabled || Boolean(user.profile.profileFrozen)}>
+          <label className="indiamart-customer-field"><span className="required-field-label">Are you an IndiaMART customer? <RequiredMark/></span><span className="select-wrap"><select name="indiaMartCustomer" value={user.profile.indiaMartCustomer === false ? 'no' : 'yes'} disabled required><option value="yes">Yes</option><option value="no">No</option></select><ChevronDown size={15}/></span><small>This registration setting is fixed and cannot be edited in the client dashboard.</small></label>
+          {user.profile.indiaMartCustomer === false && <div className="indiamart-customer-blocked" role="alert">Online order access is locked because this profile is marked “No” for IndiaMART customer status. Contact Gouri Agency.</div>}
+          <fieldset className="order-form-fields" disabled={!orderIntakeSettings.enabled || Boolean(user.profile.profileFrozen) || user.profile.indiaMartCustomer === false}>
             <ClientBulkOrderUpload resetToken={bulkImportReset} disabled={!orderIntakeSettings.enabled || Boolean(user.profile.profileFrozen) || busy} onImport={importedItems => setItems(importedItems)}/>
             <section className="medicine-section" aria-label="Medicine items">
               <div className="medicine-heading"><div><h2>Medicine items</h2><p>Add a row for each medicine. Quantity can be boxes, pieces, or a combination.</p></div><button className="button outline add-item" type="button" onClick={() => setItems(prev => [...prev, { name: '', quantity: '' }])}><Plus size={15}/> Add item</button></div>
@@ -3639,7 +3648,7 @@ function App() {
               </div>)}
             </section>
             <p className="quick-order-terms">Your registered profile agreement and order terms apply. Every order is submitted for admin approval.</p>
-            <button className="button dark" disabled={!orderIntakeSettings.enabled || busy || Boolean(user.profile.profileFrozen)}>{busy ? <LoadingAction loading label="Submitting order…"/> : <>Submit order for approval <ArrowUpRight size={16}/></>}</button>
+            <button className="button dark" disabled={!orderIntakeSettings.enabled || busy || Boolean(user.profile.profileFrozen) || user.profile.indiaMartCustomer === false}>{busy ? <LoadingAction loading label="Submitting order…"/> : <>Submit order for approval <ArrowUpRight size={16}/></>}</button>
           </fieldset>
         </form>
       </main>}
@@ -3651,8 +3660,10 @@ function App() {
         {notice && <div className={`notice ${noticeIsError ? 'error' : ''}`} role={noticeIsError ? 'alert' : 'status'}>{noticeIsError ? <CircleHelp size={16} /> : <Check size={16} />}{notice}</div>}
         {!orderIntakeSettings.enabled && <div className="order-intake-closed-notice" role="alert"><strong>ORDER REQUESTS ARE TEMPORARILY CLOSED</strong><span>{orderIntakeSettings.message}</span></div>}
         <form className="order-form" onSubmit={submitOrder}>
+          <label className="indiamart-customer-field"><span className="required-field-label">Are you an IndiaMART customer? <RequiredMark/></span><span className="select-wrap"><select name="indiaMartCustomer" value={user?.profile ? (user.profile.indiaMartCustomer === false ? 'no' : 'yes') : indiaMartCustomer} onChange={event => setIndiaMartCustomer(event.target.value)} disabled={Boolean(user?.profile) || !orderIntakeSettings.enabled} required><option value="" disabled>Select Yes or No</option><option value="yes">Yes</option><option value="no">No</option></select><ChevronDown size={15}/></span>{user?.profile ? <small>This profile setting is fixed and cannot be changed from the dashboard.</small> : <small>Select “Yes” to unlock the rest of the order form.</small>}</label>
+          {!user?.profile && indiaMartCustomer === 'no' && <div className="indiamart-customer-blocked" role="alert">Online order requests are available only to IndiaMART customers. The remaining form is locked.</div>}
           {user?.role === 'client' && user.profile?.profileFrozen && <div className="license-freeze-alert" role="alert"><strong>Order access is frozen</strong><span>{user.profile.drugLicenseExpiryMissing ? 'The drug license expiry date is missing.' : `The drug license expired on ${user.profile.drugLicenseExpiresAt}.`} Update the license copy and number in your profile, then ask an admin to record a valid expiry date.</span></div>}
-          <fieldset className="order-form-fields" disabled={!orderIntakeSettings.enabled}>
+          <fieldset className="order-form-fields" disabled={!orderIntakeSettings.enabled || (!user?.profile && indiaMartCustomer !== 'yes')}>
           <div className="gst-verification-field">
             <label><span className="required-field-label">GST number <RequiredMark/></span><input name="gstNumber" placeholder="GSTIN" defaultValue={user?.profile?.gstNumber || ''} readOnly={Boolean(user?.profile || gstVerification)} onChange={handleGstNumberInput} onBlur={handleGstNumberBlur} required /></label>
             {gstLookupStatus.message && <small className={`gst-verification-note ${gstLookupStatus.state}`} role="status">{gstLookupStatus.message}</small>}
@@ -3785,7 +3796,7 @@ function App() {
             <details className="admin-customer-details" onToggle={event => { if (event.currentTarget.open) setClientProfileTabs(current => ({ ...current, [profile.id]: current[profile.id] || 'overview' })) }}>
               <summary className="admin-customer-summary">
                 <ProfileAvatar profile={profile} token={user.token}/>
-                <div className="admin-customer-overview"><strong>{profile.shopName}</strong><span>GST: {profile.gstNumber} · {profile.orderIds.length} order{profile.orderIds.length === 1 ? '' : 's'}</span><small>Outstanding: {formatMoney(orders.filter(order => order.profileId === profile.id && order.status !== 'Cancelled').reduce((sum, order) => sum + Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)), 0))}</small>{profile.accessBlocked && <small className="client-access-flag is-blocked">Client portal blocked · 603</small>}</div>
+                <div className="admin-customer-overview"><strong>{profile.shopName}</strong><span>GST: {profile.gstNumber} · {profile.orderIds.length} order{profile.orderIds.length === 1 ? '' : 's'}</span><small>IndiaMART customer: {profile.indiaMartCustomer === false ? 'No' : 'Yes'}</small><small>Outstanding: {formatMoney(orders.filter(order => order.profileId === profile.id && order.status !== 'Cancelled').reduce((sum, order) => sum + Math.max(0, Number(order.amountDue || 0) - Number(order.amountPaid || 0)), 0))}</small>{profile.accessBlocked && <small className="client-access-flag is-blocked">Client portal blocked · 603</small>}</div>
                 <span className="admin-profile-expand"><span className="profile-expand-closed">View profile</span><span className="profile-expand-open">Hide profile</span><ChevronDown size={15}/></span>
               </summary>
               <div className="admin-customer-expanded">
@@ -3794,6 +3805,7 @@ function App() {
               <div className="profile-info">
                 <strong>{profile.shopName}</strong>
                 <span>GST: {profile.gstNumber} · {profile.orderIds.length} order{profile.orderIds.length === 1 ? '' : 's'}</span>
+                <span>IndiaMART customer: {profile.indiaMartCustomer === false ? 'No' : 'Yes'} · fixed at registration</span>
                 {profile.gstVerifiedAt && <span className="gst-verified-badge">GST details verified · {new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium' }).format(new Date(profile.gstVerifiedAt))}</span>}
                 {profile.businessType === 'Sole proprietorship' && <span>Owner: {profile.ownerName}</span>}
                 {profile.businessType === 'Partnership' && <span>Partners: {profile.partnerOne} and {profile.partnerTwo}</span>}
@@ -3830,6 +3842,7 @@ function App() {
                 <div className="profile-order-heading"><span className="order-title"><strong>{order.id}</strong><DueAgeIndicator order={order}/></span><small>{formatTimestamp(order.date)}</small><button type="button" className="button danger compact-danger order-trash-action" disabled={updatingOrder === order.id || paymentLocked} onClick={() => deleteAdminOrder(order.id)}>{updatingOrder === order.id ? <LoadingAction label="Moving to trash…"/> : 'Move to trash'}</button></div>
                 <div className="profile-order-details">
                   <span>{order.shopName} · {order.businessType}</span>
+                  <span>IndiaMART customer: {order.indiaMartCustomer === false ? 'No' : 'Yes'}</span>
                   {order.businessType === 'Sole proprietorship' && <span>Owner: {order.ownerName}</span>}
                   {order.businessType === 'Partnership' && <span>Partners: {order.partnerOne} and {order.partnerTwo}</span>}
                   <span>{order.email} · {order.mobile}</span>
