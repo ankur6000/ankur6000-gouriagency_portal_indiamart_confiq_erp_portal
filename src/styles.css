@@ -1019,6 +1019,13 @@ p{line-height:1.7}
 .order-status-badge{display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border:1px solid #dce5d8;border-radius:999px;background:#f1f5ef;color:#526952;font-size:10px;font-weight:700}
 .order-status-badge.status-rejected{border-color:#ead2ce;background:#fbf0ee;color:#975248}
 .order-status-badge.status-complete{border-color:#d7e5d3;background:#edf5e9;color:#496c4a}
+.client-order-status-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.order-status-badge.client-order-status{min-height:24px;padding:0 10px;font-size:9px}
+.order-status-badge.client-order-status.status-in-progress{border-color:#e5c45c;background:#fff5d3;color:#795c12;animation:client-order-status-pulse 1.1s ease-in-out infinite}
+.order-status-badge.client-order-status.status-approved,.order-status-badge.client-order-status.status-complete{border-color:#cbdcc8;background:#edf5e9;color:#3f7047;animation:none}
+.order-status-badge.client-order-status.status-rejected{border-color:#e6c3bd;background:#fff0ed;color:#a23a30;animation:none}
+@keyframes client-order-status-pulse{0%,100%{box-shadow:0 0 0 0 #d7a90016;filter:brightness(1)}50%{box-shadow:0 0 0 4px #d7a90030;filter:brightness(.94)}}
+@media(prefers-reduced-motion:reduce){.order-status-badge.client-order-status.status-in-progress{animation:none;border-color:#c5a434;background:#fff2c2}}
 .client-order-actions{align-items:center;gap:9px;margin:0 0 10px}
 .cancel-order-button:disabled{color:#788278;border-color:#dfe4dc;background:#f2f4f1;opacity:1;cursor:not-allowed}
 .cancel-order-locked-note{color:#7b857d;font-size:9px;line-height:1.4}
