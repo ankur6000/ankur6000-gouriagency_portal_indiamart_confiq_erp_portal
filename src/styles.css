@@ -102,7 +102,7 @@
 .portal-link-icon{width:42px;height:42px;margin:23px 0 13px;display:grid;place-items:center;border-radius:50%;background:#e8eee4;color:#526a50}
 .portal-link-card h2{margin:0 0 8px;font:600 20px 'Manrope';letter-spacing:-.4px}
 .portal-link-card p{max-width:320px;margin:0 0 12px;color:#778179;font-size:12px;line-height:1.7}
-.portal-link-card .text-button{margin-top:auto}
+.portal-link-card .portal-link-action{margin-top:auto;min-height:42px;padding:0 15px;gap:10px;font-size:10px}
 .login-page{display:block;max-width:520px;min-height:calc(100vh - 175px);padding:56px 0 70px}
 .login-card{max-width:none;padding:34px;background:#fafbf9;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 36px #26352a0a}
 .login-mark{display:none}

@@ -3503,14 +3503,14 @@ function App() {
             <div className="portal-link-icon"><Plus size={20} /></div>
             <h2>Submit an order</h2>
             <p>Add your shop details, medicine items, and required documents.</p>
-            <button className="text-button underline" onClick={() => go('orders')}>Open order form <ArrowUpRight size={15} /></button>
+            <button className="button dark portal-link-action" onClick={() => go('orders')}>Open order form <ArrowUpRight size={15} /></button>
           </article>
           <article className="portal-link-card">
             <span className="portal-step">02 / YOUR ACCOUNT</span>
             <div className="portal-link-icon"><ArrowRight size={20} /></div>
             <h2>{user ? 'Open your workspace' : 'Sign in'}</h2>
             <p>{user ? 'Continue to your client workspace or studio admin panel.' : 'Access your client workspace or sign in as a studio admin.'}</p>
-            <button className="text-button underline" onClick={() => go(user ? (user.role === 'admin' ? 'admin' : 'client') : 'login')}>{user ? 'Open workspace' : 'Go to sign in'} <ArrowUpRight size={15} /></button>
+            <button className="button outline portal-link-action" onClick={() => go(user ? (user.role === 'admin' ? 'admin' : 'client') : 'login')}>{user ? 'Open workspace' : 'Go to sign in'} <ArrowUpRight size={15} /></button>
           </article>
         </section>
       </main>}
