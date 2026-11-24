@@ -4,6 +4,7 @@ function Icon({ children, size = 24, strokeWidth = 1.8, ...props }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{children}</svg>
 }
 export const ArrowDown = p => <Icon {...p}><path d="M12 5v14M19 12l-7 7-7-7"/></Icon>
+export const ArrowLeft = p => <Icon {...p}><path d="M19 12H5m7 7-7-7 7-7"/></Icon>
 export const ArrowRight = p => <Icon {...p}><path d="M5 12h14m-7-7 7 7-7 7"/></Icon>
 export const ArrowUpRight = p => <Icon {...p}><path d="M7 17 17 7M7 7h10v10"/></Icon>
 export const Asterisk = p => <Icon {...p}><path d="M12 3v18M3 12h18M5.64 5.64l12.72 12.72M18.36 5.64 5.64 18.36"/></Icon>
