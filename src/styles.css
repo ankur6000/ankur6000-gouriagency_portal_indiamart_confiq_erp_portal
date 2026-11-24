@@ -861,6 +861,12 @@ html,body{overflow-x:clip}
 .indiamart-customer-field>small{color:#778279;font-size:9px;font-weight:400;line-height:1.55}
 .indiamart-customer-blocked{padding:13px 15px;border:1px solid #e5b4ad;border-left:4px solid #b42318;border-radius:5px;background:#fff4f2;color:#9a2d24;font-size:11px;line-height:1.6}
 .order-form-fields:disabled{opacity:.62}
+.footer-security-marquee{overflow:hidden;border-top:1px solid #dfe5dd;border-bottom:1px solid #dfe5dd;background:#edf1eb;color:#405448}
+.footer-security-track{display:flex;width:200%;animation:footer-security-flow 26s linear infinite}
+.footer-security-message{display:flex;flex:0 0 50%;align-items:center;justify-content:center;gap:10px;min-height:47px;padding:10px 20px;font-size:10px;font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.footer-security-message svg{flex-shrink:0;color:#66835e}
+@keyframes footer-security-flow{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.footer-security-track{width:100%;animation:none}.footer-security-message{flex-basis:100%}.footer-security-message[aria-hidden=true]{display:none}}
 .order-disclaimer-title{display:flex;align-items:center;gap:10px;margin:0 0 20px;color:#a5221a;font:700 26px 'Manrope';letter-spacing:-.7px;animation:order-disclaimer-flash 1s steps(2,end) infinite}
 .order-disclaimer-title>span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#b42318;color:#fff;font:800 18px 'Manrope'}
 .order-disclaimer-copy{grid-template-columns:minmax(0,1fr);margin:0 0 18px}
