@@ -3880,7 +3880,7 @@ function App() {
         </div>
       </main>}
 
-      <footer className="footer"><button className="brand" onClick={() => go('home')}><Mark small/><span className="brand-text">GOURI <b>AGENCY</b></span></button><span>Independent by nature. Good by design.</span><div><a href="#contact" onClick={event => { event.preventDefault(); go('contact') }}>Contact us <ArrowUpRight size={12}/></a><span>© 2026 Gouri Agency</span></div></footer>
+      <footer className="footer"><button className="brand" onClick={() => go('home')}><Mark small/><span className="brand-text">GOURI <b>AGENCY</b></span></button><span>Independent by nature. Good by design.</span><div><a href="#contact" onClick={event => { event.preventDefault(); go('contact') }}>Contact us <ArrowUpRight size={12}/></a><span>© {new Date().getFullYear()} Gouri Agency. All rights reserved.</span></div></footer>
       {page === 'home' && <div className="footer-compliance-banner">Wholesale Pharmaceutical Distributor. Valid Wholesale Drug License No: [DL-BD-BDN/DGP/55-SBW] | GSTIN: [19AAFFG2609C1ZR]. Orders are strictly restricted to licensed pharmacies and medical institutions.<div className="footer-site-stats"><span><strong>Visitor count</strong>{siteVisitorCount === null ? 'Loading…' : siteVisitorCount.toLocaleString('en-IN')}</span><span><strong>Website last updated</strong>{formatSiteTimestamp(SITE_BUILD_TIMESTAMP)}</span></div></div>}
       {page === 'admin' && externalPortal && <AdminExternalPortalDialog portalKey={externalPortal} onCancel={() => setExternalPortal(null)} onAgree={() => window.location.assign(ADMIN_EXTERNAL_PORTALS[externalPortal].url)}/>}
       {previewDocument && <DocumentPreview document={previewDocument} onClose={() => setPreviewDocument(null)}/>}
