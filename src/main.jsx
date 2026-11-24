@@ -2398,6 +2398,25 @@ const clientDashboardTabs = [
   { id: 'profile', label: 'Profile' }
 ]
 
+function OrderRequestDisclaimer({ onAgree, onDisagree }) {
+  const agreeButtonRef = useRef(null)
+  useEffect(() => { agreeButtonRef.current?.focus() }, [])
+  return <div className="order-disclaimer-backdrop">
+    <section className="order-disclaimer-dialog" role="dialog" aria-modal="true" aria-labelledby="order-disclaimer-title" aria-describedby="order-disclaimer-copy">
+      <div className="eyebrow"><span className="live-dot"/> BEFORE YOU ORDER</div>
+      <h2 id="order-disclaimer-title" className="order-disclaimer-title"><span aria-hidden="true">!</span> Important Notice</h2>
+      <div id="order-disclaimer-copy" className="terms-notice order-disclaimer-copy">
+        <p>Online orders through this website are strictly limited to verified <strong>IndiaMART customers</strong> placing orders via IndiaMART. No other direct or external online orders will be accepted on this platform. For further details, inquiries, or order assistance, please contact <strong>Gouri Agency</strong>.</p>
+      </div>
+      <p className="order-disclaimer-prompt">Please confirm that you understand this restriction before opening the order form.</p>
+      <div className="order-disclaimer-actions">
+        <button type="button" className="button outline" onClick={onDisagree}>Disagree</button>
+        <button ref={agreeButtonRef} type="button" className="button dark" onClick={onAgree}>Agree and open order form <ArrowRight size={15}/></button>
+      </div>
+    </section>
+  </div>
+}
+
 function ClientTransactionsTab({ orders, kind }) {
   const isRefunds = kind === 'refunds'
   const seenTransactions = new Set()
@@ -2640,6 +2659,7 @@ function App() {
   const siteVisitRequestRef = useRef(null)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const [orderIntakeSettings, setOrderIntakeSettings] = useState({ enabled: true, message: 'Order requests are temporarily closed. Please contact Gouri Agency for assistance.' })
+  const [orderDisclaimerAccepted, setOrderDisclaimerAccepted] = useState(false)
   const [preloaderVisible, setPreloaderVisible] = useState(true)
   const [preloaderLeaving, setPreloaderLeaving] = useState(false)
   const [clientTab, setClientTab] = useState('overview')
@@ -2852,6 +2872,7 @@ function App() {
     return () => { cancelled = true; window.clearInterval(refreshTimer); document.removeEventListener('visibilitychange', refreshWhenVisible) }
   }, [user?.role, user?.token])
   const go = (next) => {
+    if (next === 'orders') setOrderDisclaimerAccepted(false)
     if (next === 'orders' && user?.profile) {
       setBusinessType(user.profile.businessType)
       setPartnerOneName(user.profile.partnerOne || '')
@@ -3423,6 +3444,8 @@ function App() {
         </nav>
       </header>
 
+      {page === 'orders' && !orderDisclaimerAccepted && <OrderRequestDisclaimer onAgree={() => setOrderDisclaimerAccepted(true)} onDisagree={() => go('home')}/>}
+
       {page === 'home' && <HomeImageSlider/>}
       {page === 'holidays' && <main className="holiday-page"><PublicHolidayCalendar/></main>}
       {page === 'pay-online' && <PayOnlinePage/>}
@@ -3544,7 +3567,7 @@ function App() {
         </section>
       </main>}
 
-      {page === 'orders' && user?.role === 'client' && user.profile && <main className="inner-page order-page quick-client-order-page">
+      {page === 'orders' && orderDisclaimerAccepted && user?.role === 'client' && user.profile && <main className="inner-page order-page quick-client-order-page">
         <div className="eyebrow"><span className="live-dot"/> NEW CLIENT ORDER</div>
         <h1 className="inner-title">Place a new<br/><em>order.</em></h1>
         <p className="inner-lede">Add the medicines and quantities. Your saved shop profile and documents will be attached automatically.</p>
@@ -3572,7 +3595,7 @@ function App() {
         </form>
       </main>}
 
-      {page === 'orders' && !(user?.role === 'client' && user.profile) && <main className="inner-page order-page">
+      {page === 'orders' && orderDisclaimerAccepted && !(user?.role === 'client' && user.profile) && <main className="inner-page order-page">
         <div className="eyebrow"><span className="live-dot"/> ORDER REQUEST</div>
         <h1 className="inner-title">Shop order<br /><em>details.</em></h1>
         <p className="inner-lede">Add your shop information, medicine items, and required documents.</p>
