@@ -2628,6 +2628,7 @@ const server = http.createServer(async (req, res) => {
     const identifier = String(body.identifier || body.email || '').trim()
     const { password, role } = body
     if (role === 'client') {
+      if (body.termsAccepted !== true) return json(res, 400, { error: 'Accept the Terms & Conditions before signing in.' })
       const captchaError = validateClientLoginCaptcha(body.captchaId, body.captchaAnswer)
       if (captchaError) return json(res, 400, { error: captchaError })
     }
@@ -2654,6 +2655,7 @@ const server = http.createServer(async (req, res) => {
       clientSessions.set(token, profile?.id || null)
       if (profile) {
         profile.lastLoginAt = new Date().toISOString()
+        profile.termsAcceptedAt = profile.lastLoginAt
         await persistPortalState().catch(error => console.error('Could not save the client last-login timestamp:', error.message))
       }
     }

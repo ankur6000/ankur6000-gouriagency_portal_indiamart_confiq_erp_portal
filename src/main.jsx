@@ -2675,6 +2675,7 @@ function App() {
   const [loginCaptchaLoading, setLoginCaptchaLoading] = useState(false)
   const [loginCaptchaError, setLoginCaptchaError] = useState('')
   const [loginCaptchaRevision, setLoginCaptchaRevision] = useState(0)
+  const [clientTermsAccepted, setClientTermsAccepted] = useState(false)
   const [user, setUser] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [orders, setOrders] = useState([])
@@ -3069,6 +3070,7 @@ function App() {
     try {
       const body = { identifier: form.get('identifier'), password: form.get('password'), role }
       if (role === 'client') {
+        body.termsAccepted = form.get('termsAccepted') === 'on'
         if (!loginCaptcha?.challengeId) throw new Error('Wait for the CAPTCHA code to load, then try again.')
         body.captchaId = loginCaptcha.challengeId
         body.captchaAnswer = loginCaptchaAnswer
@@ -3096,6 +3098,7 @@ function App() {
   const changeLoginRole = nextRole => {
     if (nextRole === role) return
     setRole(nextRole)
+    setClientTermsAccepted(false)
     setNotice('')
     setNoticeIsError(false)
   }
@@ -3672,7 +3675,16 @@ function App() {
         </form>
       </main>}
 
-      {page === 'login' && <main className="login-page"><div className="login-card"><div className="login-mark"><Mark/></div><div className="eyebrow"><span className="live-dot"/> CLIENT OR ADMIN</div><h1>Sign in</h1><p>Choose your account type and enter your details.</p><div className="role-tabs" role="group" aria-label="Sign-in type"><button type="button" aria-pressed={role === 'client'} className={role === 'client' ? 'selected' : ''} onClick={() => changeLoginRole('client')}>Client</button><button type="button" aria-pressed={role === 'admin'} className={role === 'admin' ? 'selected' : ''} onClick={() => changeLoginRole('admin')}>Admin</button></div><form key={role} onSubmit={login}><label>{role === 'admin' ? 'Email address' : 'Registered email, phone, or GST'}<input type="text" name="identifier" autoComplete="username" placeholder={role === 'admin' ? 'Admin email address' : 'Email, mobile number, or GSTIN'} required/></label>{role === 'admin' && <label>Password<input type="password" name="password" autoComplete="current-password" placeholder="Your password" required/></label>}{role === 'client' && <section className="login-captcha" aria-labelledby="login-captcha-title"><div className="login-captcha-heading"><div><span className="eyebrow">HUMAN VERIFICATION</span><strong id="login-captcha-title">Quick security check</strong></div><button type="button" className="captcha-refresh" onClick={() => setLoginCaptchaRevision(value => value + 1)} disabled={loginCaptchaLoading}><Sparkles size={14}/> New code</button></div><div className="login-captcha-body"><div className="captcha-image-frame">{loginCaptchaLoading ? <span>Loading secure code…</span> : loginCaptcha?.image ? <img src={loginCaptcha.image} alt="Five-character CAPTCHA code. Enter the characters shown."/> : <span>Code unavailable</span>}</div><label htmlFor="client-captcha-answer">Enter the code<input id="client-captcha-answer" name="captchaAnswer" type="text" autoComplete="off" autoCapitalize="characters" spellCheck="false" maxLength={5} value={loginCaptchaAnswer} onChange={event => setLoginCaptchaAnswer(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="5 characters" required aria-describedby="login-captcha-help"/></label></div><p id="login-captcha-help">Enter the five letters and numbers shown. The code expires in four minutes.</p>{loginCaptchaError && <small className="login-captcha-error" role="alert">{loginCaptchaError} <button type="button" onClick={() => setLoginCaptchaRevision(value => value + 1)}>Try again</button></small>}</section>}{noticeIsError && notice && <div className="error-note" role="alert">{notice}</div>}<button className="button dark full" disabled={busy || (role === 'client' && (!loginCaptcha || loginCaptchaLoading || Boolean(loginCaptchaError)))}>{busy ? <LoadingAction loading label="Signing in…"/> : <>Sign in <ArrowRight size={16}/></>}</button></form><div className="login-help"><CircleHelp size={14}/> Need help? <a href="mailto:gouriagency185@gmail.com">Contact us</a></div></div></main>}
+      {page === 'login' && <main className="login-page"><div className="login-card"><div className="login-mark"><Mark/></div><div className="eyebrow"><span className="live-dot"/> CLIENT OR ADMIN</div><h1>Sign in</h1><p>Choose your account type and enter your details.</p><div className="role-tabs" role="group" aria-label="Sign-in type"><button type="button" aria-pressed={role === 'client'} className={role === 'client' ? 'selected' : ''} onClick={() => changeLoginRole('client')}>Client</button><button type="button" aria-pressed={role === 'admin'} className={role === 'admin' ? 'selected' : ''} onClick={() => changeLoginRole('admin')}>Admin</button></div><form key={role} onSubmit={login}>
+        <label>{role === 'admin' ? 'Email address' : 'Registered email, phone, or GST'}<input type="text" name="identifier" autoComplete="username" placeholder={role === 'admin' ? 'Admin email address' : 'Email, mobile number, or GSTIN'} required/></label>
+        {role === 'admin' && <label>Password<input type="password" name="password" autoComplete="current-password" placeholder="Your password" required/></label>}
+        {role === 'client' && <>
+          <section className="login-captcha" aria-labelledby="login-captcha-title"><div className="login-captcha-heading"><div><span className="eyebrow">HUMAN VERIFICATION</span><strong id="login-captcha-title">Quick security check</strong></div><button type="button" className="captcha-refresh" onClick={() => setLoginCaptchaRevision(value => value + 1)} disabled={loginCaptchaLoading}><Sparkles size={14}/> New code</button></div><div className="login-captcha-body"><div className="captcha-image-frame">{loginCaptchaLoading ? <span>Loading secure code…</span> : loginCaptcha?.image ? <img src={loginCaptcha.image} alt="Five-character CAPTCHA code. Enter the characters shown."/> : <span>Code unavailable</span>}</div><label htmlFor="client-captcha-answer">Enter the code<input id="client-captcha-answer" name="captchaAnswer" type="text" autoComplete="off" autoCapitalize="characters" spellCheck="false" maxLength={5} value={loginCaptchaAnswer} onChange={event => setLoginCaptchaAnswer(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="5 characters" required aria-describedby="login-captcha-help"/></label></div><p id="login-captcha-help">Enter the five letters and numbers shown. The code expires in four minutes.</p>{loginCaptchaError && <small className="login-captcha-error" role="alert">{loginCaptchaError} <button type="button" onClick={() => setLoginCaptchaRevision(value => value + 1)}>Try again</button></small>}</section>
+          <div className="login-terms-row"><label className="login-terms-accept"><input type="checkbox" name="termsAccepted" required checked={clientTermsAccepted} onChange={event => setClientTermsAccepted(event.target.checked)}/><span>I have read and accept the</span></label><button type="button" className="login-terms-link" onClick={() => go('terms')}>Terms &amp; Conditions</button><span>.</span></div>
+        </>}
+        {noticeIsError && notice && <div className="error-note" role="alert">{notice}</div>}
+        <button className="button dark full" disabled={busy || (role === 'client' && (!loginCaptcha || loginCaptchaLoading || Boolean(loginCaptchaError) || !clientTermsAccepted))}>{busy ? <LoadingAction loading label="Signing in…"/> : <>Sign in <ArrowRight size={16}/></>}</button>
+      </form><div className="login-help"><CircleHelp size={14}/> Need help? <a href="mailto:gouriagency185@gmail.com">Contact us</a></div></div></main>}
 
       {page === 'payment-success' && user?.role === 'client' && paymentSuccess && <PaymentSuccessPage details={paymentSuccess} token={user.token} email={user.profile?.email || user.email} onReturn={() => { setClientTab('orders'); go('client') }}/>}
 
