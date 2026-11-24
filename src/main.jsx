@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, LockKeyhole, Mail, Menu, Package, Pencil, Plus, ShieldCheck, Sparkles, X } from './icons.jsx'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, LockKeyhole, Mail, Menu, Package, Pencil, Phone, Plus, ShieldCheck, Sparkles, X } from './icons.jsx'
 import { createStatementPdf, getStatementPeriodRange } from './statementPdf.js'
 import { createHolidayCalendarPdf } from './holidayPdf.js'
 import { createNoticePdf } from './noticePdf.js'
@@ -3493,15 +3493,15 @@ function App() {
               ['8250589982', 'tel:+918250589982'],
               ['8250558137', 'tel:+918250558137'],
               ['7908911952', 'tel:+917908911952']
-            ].map(([phone, href]) => <a key={phone} href={href}>{phone} <ArrowUpRight size={14}/></a>)}</div>
+            ].map(([phone, href]) => <a key={phone} href={href}><span className="contact-method-value"><Phone size={15}/>{phone}</span><ArrowUpRight size={14}/></a>)}</div>
           </section>
           <section className="contact-card">
             <span className="contact-kicker">EMAIL</span>
             <h2>Contact by level</h2>
             <div className="contact-detail-list contact-email-list">
-              <a href="mailto:gouriagency185@gmail.com"><span><small>LEVEL 1</small>gouriagency185@gmail.com</span><ArrowUpRight size={14}/></a>
-              <a href="mailto:dbachchu@gmail.com"><span><small>LEVEL 2</small>dbachchu@gmail.com</span><ArrowUpRight size={14}/></a>
-              <a href="mailto:upadhyayjagneswar@gmail.com"><span><small>LEVEL 3</small>upadhyayjagneswar@gmail.com</span><ArrowUpRight size={14}/></a>
+              <a href="mailto:gouriagency185@gmail.com"><span className="contact-email-value"><Mail size={15}/><span><small>LEVEL 1</small>gouriagency185@gmail.com</span></span><ArrowUpRight size={14}/></a>
+              <a href="mailto:dbachchu@gmail.com"><span className="contact-email-value"><Mail size={15}/><span><small>LEVEL 2</small>dbachchu@gmail.com</span></span><ArrowUpRight size={14}/></a>
+              <a href="mailto:upadhyayjagneswar@gmail.com"><span className="contact-email-value"><Mail size={15}/><span><small>LEVEL 3</small>upadhyayjagneswar@gmail.com</span></span><ArrowUpRight size={14}/></a>
             </div>
           </section>
           <section className="contact-card contact-card-wide">

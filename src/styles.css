@@ -362,7 +362,10 @@
 .contact-detail-list>a{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid #e8ebe6;color:#415c50;font-size:12px;font-weight:600}
 .contact-detail-list>a:last-child{border-bottom:0}
 .contact-detail-list>a:hover{color:#202b27}
-.contact-email-list>a span{display:flex;flex-direction:column;gap:4px;overflow-wrap:anywhere}
+.contact-method-value{display:inline-flex;align-items:center;gap:10px;min-width:0}
+.contact-method-value>svg,.contact-email-value>svg{flex:0 0 auto;color:#71816f}
+.contact-email-list>a .contact-email-value{display:flex;flex-direction:row;align-items:center;gap:11px;min-width:0;overflow-wrap:anywhere}
+.contact-email-value>span{display:flex;flex-direction:column;gap:4px;min-width:0;overflow-wrap:anywhere}
 .contact-email-list small{font-size:8px;letter-spacing:1.1px;color:#89928b}
 .contact-card-wide{grid-column:1/-1}
 .contact-card-wide p{margin:0;color:#69756c;font-size:13px;line-height:1.9}
